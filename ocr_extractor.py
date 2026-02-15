@@ -91,7 +91,18 @@ def parse_scientific_notation(text: str) -> Optional[float]:
 
 
 def extract_float(text: str, pattern: str) -> Optional[float]:
-    """Extract a float value following a pattern."""
+    """Extract a float value following a pattern. Handles negative numbers."""
+    match = re.search(pattern, text, re.IGNORECASE)
+    if match:
+        try:
+            return float(match.group(1))
+        except:
+            pass
+    return None
+
+
+def extract_float_negative(text: str, pattern: str) -> Optional[float]:
+    """Extract a float value that may be negative."""
     match = re.search(pattern, text, re.IGNORECASE)
     if match:
         try:
@@ -197,19 +208,38 @@ def parse_results_from_text(text: str) -> ExtractedResults:
         confidence_count += 1
     total_fields += 1
     
-    # Phase
-    phase = extract_float(text, r'[φϕ]\s*[=:]\s*([\d.]+)')
+    # Phase (Raw Phase φ)
+    phase = extract_float(text, r'[Rr]aw\s*[Pp]hase[^:]*[:\s]*([\d.]+)')
     if phase is None:
-        phase = extract_float(text, r'Phase[:\s]*([\d.]+)')
+        phase = extract_float(text, r'[φϕ]\s*[):\s]*([\d.]+)')
+    if phase is None:
+        phase = extract_float(text, r'Phase\s*\([φϕ]\)[:\s]*([\d.]+)')
+    if phase is None:
+        phase = extract_float(text, r'Phase[:\s]*([\d.]+)\s*rad')
+    if phase is None:
+        # Try to find a number followed by "rad" that's likely the phase
+        phase = extract_float(text, r'([\d.]+)\s*rad')
     if phase:
         results.raw_phase_phi = phase
         confidence_count += 1
     total_fields += 1
     
-    # Log term
-    ln_term = extract_float(text, r'[Ll]n\s*[Tt]erm[:\s]*([\d.]+)')
+    # Log term - can be negative! Look for various patterns
+    ln_term = extract_float_negative(text, r'[Ll]og\s*[Tt]erm[^=]*[=:\s]*(-?[\d.]+)')
     if ln_term is None:
-        ln_term = extract_float(text, r'ln\s*[=:]\s*([\d.]+)')
+        ln_term = extract_float_negative(text, r'[Ll]n\s*[Tt]erm[^=]*[=:\s]*(-?[\d.]+)')
+    if ln_term is None:
+        ln_term = extract_float_negative(text, r'ln\s*\([^)]+\)[^=]*[=:\s]*(-?[\d.]+)')
+    if ln_term is None:
+        ln_term = extract_float_negative(text, r'ln[^=]*[=:]\s*(-?[\d.]+)')
+    if ln_term is None:
+        # Look for negative decimal near "ln" 
+        match = re.search(r'ln.*?(-\d+\.?\d*)', text, re.IGNORECASE)
+        if match:
+            try:
+                ln_term = float(match.group(1))
+            except:
+                pass
     if ln_term:
         results.ln_term = ln_term
         confidence_count += 1
