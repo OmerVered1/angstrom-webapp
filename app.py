@@ -731,21 +731,33 @@ def render_upload_image_page():
     # Get extracted values or defaults
     extracted = st.session_state.get('extracted_results', ExtractedResults())
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         model_name = st.text_input("Model/Sample Name", value=extracted.model_name or "")
         test_date = st.text_input("Test Date", value=extracted.test_date or datetime.now().strftime("%d/%m/%Y"))
         r1_mm = st.number_input("r₁ (mm)", value=extracted.r1_mm or 6.72, min_value=0.1)
         r2_mm = st.number_input("r₂ (mm)", value=extracted.r2_mm or 14.86, min_value=0.1)
+        analysis_mode = st.selectbox("Analysis Mode", ["Auto", "Manual"], index=0)
     
     with col2:
         amplitude_a1 = st.number_input("A₁ (mW)", value=extracted.amplitude_a1 or 0.0, format="%.4f")
         amplitude_a2 = st.number_input("A₂ (mW)", value=extracted.amplitude_a2 or 0.0, format="%.4f")
         period_t = st.number_input("Period T (s)", value=extracted.period_t or 0.0, format="%.2f")
         raw_lag_dt = st.number_input("Raw Δt (s)", value=extracted.raw_lag_dt or 0.0, format="%.2f")
+        raw_phase_phi = st.number_input("Raw Phase φ (rad)", value=extracted.raw_phase_phi or 0.0, format="%.4f")
     
     with col3:
+        # Auto-calculate frequency if period is provided
+        default_freq = extracted.frequency_f or (1.0 / extracted.period_t if extracted.period_t and extracted.period_t > 0 else 0.0)
+        default_omega = extracted.angular_freq_w or (2 * 3.14159 / extracted.period_t if extracted.period_t and extracted.period_t > 0 else 0.0)
+        
+        frequency_f = st.number_input("Frequency f (Hz)", value=default_freq, format="%.6f")
+        angular_freq_w = st.number_input("Angular Freq ω (rad/s)", value=default_omega, format="%.6f")
+        ln_term = st.number_input("Log Term ln(...)", value=extracted.ln_term or 0.0, format="%.4f")
+        net_lag_dt = st.number_input("Net Δt (s)", value=extracted.net_lag_dt or 0.0, format="%.2f")
+    
+    with col4:
         alpha_combined_raw = st.text_input(
             "α Combined Raw (m²/s)",
             value=f"{extracted.alpha_combined_raw:.2e}" if extracted.alpha_combined_raw else ""
@@ -786,10 +798,10 @@ def render_upload_image_page():
                     except:
                         return 0.0
                 
-                # Calculate derived values if not provided
-                freq_f = 1 / period_t if period_t > 0 else 0
-                omega_w = 2 * 3.14159 / period_t if period_t > 0 else 0
-                phi = omega_w * raw_lag_dt if omega_w > 0 else 0
+                # Use user-provided values or calculate if not provided
+                freq_f = frequency_f if frequency_f > 0 else (1 / period_t if period_t > 0 else 0)
+                omega_w = angular_freq_w if angular_freq_w > 0 else (2 * 3.14159 / period_t if period_t > 0 else 0)
+                phi = raw_phase_phi if raw_phase_phi > 0 else (omega_w * raw_lag_dt if omega_w > 0 else 0)
                 
                 # Get image bytes if available
                 img_bytes = st.session_state.get('uploaded_image_bytes', None)
@@ -808,7 +820,7 @@ def render_upload_image_page():
                     c80_pwr_unit="mW",
                     src_time_unit="Seconds",
                     src_pwr_unit="mW",
-                    analysis_mode="Image Upload",
+                    analysis_mode=analysis_mode,
                     use_calibration=use_calibration,
                     system_lag=system_lag,
                     t_min=0,
@@ -820,12 +832,12 @@ def render_upload_image_page():
                     angular_freq_w=omega_w,
                     raw_lag_dt=raw_lag_dt,
                     raw_phase_phi=phi,
-                    ln_term=extracted.ln_term or 0,
+                    ln_term=ln_term,
                     alpha_combined_raw=parse_alpha(alpha_combined_raw),
                     alpha_combined_cal=parse_alpha(alpha_combined_cal),
                     alpha_phase_raw=parse_alpha(alpha_phase_raw),
                     alpha_phase_cal=parse_alpha(alpha_phase_cal),
-                    net_lag_dt=extracted.net_lag_dt or 0,
+                    net_lag_dt=net_lag_dt,
                     net_phase_phi=0,
                     graph_image=img_bytes
                 )
