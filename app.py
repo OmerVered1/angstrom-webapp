@@ -361,7 +361,7 @@ def main():
         st.header("Navigation")
         page = st.radio(
             "Select Page",
-            ["📊 New Analysis", "� Upload Results Image", "📋 Results Summary", "📁 Results History"],
+            ["📊 New Analysis", "📷 Upload Results Image", "📋 Results Summary", "📁 Results History"],
             index=0
         )
         
