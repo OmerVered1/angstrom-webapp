@@ -5,3 +5,8 @@ numpy>=1.24.0
 scipy>=1.10.0
 plotly>=5.17.0
 kaleido>=0.2.1  # For exporting Plotly figures to images
+Pillow>=9.0.0  # For image handling
+
+# Optional: OCR for image text extraction (may increase deploy time)
+# Uncomment if you want automatic text extraction from uploaded images:
+# easyocr>=1.7.0

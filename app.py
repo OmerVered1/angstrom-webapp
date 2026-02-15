@@ -19,6 +19,7 @@ from analysis import (
     auto_detect_peaks, format_scientific
 )
 import database as db
+from ocr_extractor import process_image, ExtractedResults
 
 
 # Page configuration
@@ -360,7 +361,7 @@ def main():
         st.header("Navigation")
         page = st.radio(
             "Select Page",
-            ["📊 New Analysis", "📁 Results History"],
+            ["📊 New Analysis", "� Upload Results Image", "📋 Results Summary", "📁 Results History"],
             index=0
         )
         
@@ -369,6 +370,10 @@ def main():
     
     if page == "📊 New Analysis":
         render_analysis_page()
+    elif page == "📷 Upload Results Image":
+        render_upload_image_page()
+    elif page == "📋 Results Summary":
+        render_results_summary_page()
     else:
         render_history_page()
 
@@ -674,6 +679,330 @@ def render_analysis_page():
                     st.success(f"✅ Saved to database! (ID: {analysis_id})")
                 except Exception as e:
                     st.error(f"Failed to save: {str(e)}")
+
+
+def render_upload_image_page():
+    """Render the page for uploading result images and extracting data."""
+    st.header("📷 Upload Results Image")
+    st.info("Upload a screenshot or photo of analysis results. The system will attempt to extract values automatically using OCR.")
+    
+    uploaded_image = st.file_uploader(
+        "Upload result image (JPEG, PNG)",
+        type=['jpg', 'jpeg', 'png'],
+        key='result_image'
+    )
+    
+    if uploaded_image:
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.subheader("📸 Uploaded Image")
+            st.image(uploaded_image, use_container_width=True)
+        
+        with col2:
+            st.subheader("🔍 Extract Data")
+            
+            if st.button("🔬 Run OCR Extraction", type="primary"):
+                with st.spinner("Extracting text from image..."):
+                    try:
+                        image_bytes = uploaded_image.read()
+                        uploaded_image.seek(0)
+                        
+                        extracted, raw_text = process_image(image_bytes)
+                        
+                        st.session_state['extracted_results'] = extracted
+                        st.session_state['raw_ocr_text'] = raw_text
+                        st.session_state['uploaded_image_bytes'] = image_bytes
+                        
+                        if extracted.confidence > 0:
+                            st.success(f"✅ Extraction complete! Confidence: {extracted.confidence:.0f}%")
+                        else:
+                            st.warning("⚠️ Could not extract data automatically. Please enter values manually below.")
+                    except Exception as e:
+                        st.error(f"OCR failed: {str(e)}. Please enter values manually.")
+                        st.session_state['extracted_results'] = ExtractedResults()
+    
+    st.divider()
+    
+    # Manual entry / correction form
+    st.subheader("📝 Enter or Correct Values")
+    st.caption("Fill in or correct the extracted values, then save to database.")
+    
+    # Get extracted values or defaults
+    extracted = st.session_state.get('extracted_results', ExtractedResults())
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        model_name = st.text_input("Model/Sample Name", value=extracted.model_name or "")
+        test_date = st.text_input("Test Date", value=extracted.test_date or datetime.now().strftime("%d/%m/%Y"))
+        r1_mm = st.number_input("r₁ (mm)", value=extracted.r1_mm or 6.72, min_value=0.1)
+        r2_mm = st.number_input("r₂ (mm)", value=extracted.r2_mm or 14.86, min_value=0.1)
+    
+    with col2:
+        amplitude_a1 = st.number_input("A₁ (mW)", value=extracted.amplitude_a1 or 0.0, format="%.4f")
+        amplitude_a2 = st.number_input("A₂ (mW)", value=extracted.amplitude_a2 or 0.0, format="%.4f")
+        period_t = st.number_input("Period T (s)", value=extracted.period_t or 0.0, format="%.2f")
+        raw_lag_dt = st.number_input("Raw Δt (s)", value=extracted.raw_lag_dt or 0.0, format="%.2f")
+    
+    with col3:
+        alpha_combined_raw = st.text_input(
+            "α Combined Raw (m²/s)",
+            value=f"{extracted.alpha_combined_raw:.2e}" if extracted.alpha_combined_raw else ""
+        )
+        alpha_phase_raw = st.text_input(
+            "α Phase Raw (m²/s)",
+            value=f"{extracted.alpha_phase_raw:.2e}" if extracted.alpha_phase_raw else ""
+        )
+        alpha_combined_cal = st.text_input(
+            "α Combined Cal (m²/s)",
+            value=f"{extracted.alpha_combined_cal:.2e}" if extracted.alpha_combined_cal else ""
+        )
+        alpha_phase_cal = st.text_input(
+            "α Phase Cal (m²/s)",
+            value=f"{extracted.alpha_phase_cal:.2e}" if extracted.alpha_phase_cal else ""
+        )
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        use_calibration = st.checkbox("Used Calibration", value=extracted.use_calibration)
+    with col2:
+        system_lag = st.number_input("System Lag (s)", value=extracted.system_lag or 105.0)
+    
+    st.divider()
+    
+    # Save button
+    if st.button("💾 Save Results to Database", type="primary", use_container_width=True):
+        if not model_name:
+            st.error("Model name is required!")
+        else:
+            try:
+                # Parse scientific notation inputs
+                def parse_alpha(val):
+                    if not val or val.strip() == "":
+                        return 0.0
+                    try:
+                        return float(val)
+                    except:
+                        return 0.0
+                
+                # Calculate derived values if not provided
+                freq_f = 1 / period_t if period_t > 0 else 0
+                omega_w = 2 * 3.14159 / period_t if period_t > 0 else 0
+                phi = omega_w * raw_lag_dt if omega_w > 0 else 0
+                
+                # Get image bytes if available
+                img_bytes = st.session_state.get('uploaded_image_bytes', None)
+                
+                analysis_id = db.save_analysis(
+                    model_name=model_name,
+                    test_date=test_date,
+                    test_time=datetime.now().strftime("%H:%M"),
+                    c80_filename="uploaded_image",
+                    keithley_filename="uploaded_image",
+                    r1_mm=r1_mm,
+                    r2_mm=r2_mm,
+                    t_cal="00:00:00",
+                    t_src="00:00:00",
+                    c80_time_unit="Seconds",
+                    c80_pwr_unit="mW",
+                    src_time_unit="Seconds",
+                    src_pwr_unit="mW",
+                    analysis_mode="Image Upload",
+                    use_calibration=use_calibration,
+                    system_lag=system_lag,
+                    t_min=0,
+                    t_max=0,
+                    amplitude_a1=amplitude_a1,
+                    amplitude_a2=amplitude_a2,
+                    period_t=period_t,
+                    frequency_f=freq_f,
+                    angular_freq_w=omega_w,
+                    raw_lag_dt=raw_lag_dt,
+                    raw_phase_phi=phi,
+                    ln_term=extracted.ln_term or 0,
+                    alpha_combined_raw=parse_alpha(alpha_combined_raw),
+                    alpha_combined_cal=parse_alpha(alpha_combined_cal),
+                    alpha_phase_raw=parse_alpha(alpha_phase_raw),
+                    alpha_phase_cal=parse_alpha(alpha_phase_cal),
+                    net_lag_dt=extracted.net_lag_dt or 0,
+                    net_phase_phi=0,
+                    graph_image=img_bytes
+                )
+                st.success(f"✅ Saved to database! (ID: {analysis_id})")
+                st.balloons()
+            except Exception as e:
+                st.error(f"Failed to save: {str(e)}")
+    
+    # Show raw OCR text for debugging
+    with st.expander("🔧 Debug: Raw OCR Text"):
+        raw_text = st.session_state.get('raw_ocr_text', '')
+        st.text_area("Extracted text", value=raw_text, height=200)
+
+
+def render_results_summary_page():
+    """Render a comprehensive results summary table."""
+    st.header("📋 Results Summary")
+    st.caption("Comprehensive overview of all saved analysis results")
+    
+    analyses = db.get_all_analyses()
+    
+    if not analyses:
+        st.info("No analyses saved yet. Run an analysis or upload results to see them here.")
+        return
+    
+    # Fetch full data for all analyses
+    full_analyses = []
+    for a in analyses:
+        full_data = db.get_analysis_by_id(a['id'])
+        if full_data:
+            full_analyses.append(full_data)
+    
+    # Create comprehensive DataFrame
+    summary_data = []
+    for a in full_analyses:
+        summary_data.append({
+            'ID': a['id'],
+            'Model': a['model_name'],
+            'Date': a['test_date'],
+            'r₁ (mm)': a['r1_mm'],
+            'r₂ (mm)': a['r2_mm'],
+            'A₁ (mW)': f"{a['amplitude_a1']:.3f}" if a['amplitude_a1'] else '-',
+            'A₂ (mW)': f"{a['amplitude_a2']:.3f}" if a['amplitude_a2'] else '-',
+            'T (s)': f"{a['period_t']:.1f}" if a['period_t'] else '-',
+            'Δt (s)': f"{a['raw_lag_dt']:.1f}" if a['raw_lag_dt'] else '-',
+            'α_comb (raw)': format_scientific(a['alpha_combined_raw']) if a['alpha_combined_raw'] else '-',
+            'α_comb (cal)': format_scientific(a['alpha_combined_cal']) if a['alpha_combined_cal'] and a['alpha_combined_cal'] > 0 else '-',
+            'α_phase (raw)': format_scientific(a['alpha_phase_raw']) if a['alpha_phase_raw'] else '-',
+            'α_phase (cal)': format_scientific(a['alpha_phase_cal']) if a['alpha_phase_cal'] and a['alpha_phase_cal'] > 0 else '-',
+            'Calibrated': '✓' if a['use_calibration'] else '✗',
+            'Mode': a['analysis_mode'] or '-'
+        })
+    
+    df = pd.DataFrame(summary_data)
+    
+    # Display options
+    st.subheader("📊 Summary Table")
+    
+    # Filter options
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        models = ['All'] + list(df['Model'].unique())
+        selected_model = st.selectbox("Filter by Model", models)
+    with col2:
+        modes = ['All'] + list(df['Mode'].unique())
+        selected_mode = st.selectbox("Filter by Mode", modes)
+    with col3:
+        cal_filter = st.selectbox("Filter by Calibration", ['All', 'Calibrated Only', 'Non-Calibrated Only'])
+    
+    # Apply filters
+    filtered_df = df.copy()
+    if selected_model != 'All':
+        filtered_df = filtered_df[filtered_df['Model'] == selected_model]
+    if selected_mode != 'All':
+        filtered_df = filtered_df[filtered_df['Mode'] == selected_mode]
+    if cal_filter == 'Calibrated Only':
+        filtered_df = filtered_df[filtered_df['Calibrated'] == '✓']
+    elif cal_filter == 'Non-Calibrated Only':
+        filtered_df = filtered_df[filtered_df['Calibrated'] == '✗']
+    
+    # Show table
+    st.dataframe(
+        filtered_df,
+        use_container_width=True,
+        hide_index=True,
+        height=400
+    )
+    
+    st.caption(f"Showing {len(filtered_df)} of {len(df)} results")
+    
+    st.divider()
+    
+    # Export options
+    st.subheader("📥 Export Data")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # CSV download
+        csv_data = filtered_df.to_csv(index=False)
+        st.download_button(
+            "📥 Download as CSV",
+            data=csv_data,
+            file_name="angstrom_results_summary.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+    
+    with col2:
+        # Create detailed Excel-like view
+        detailed_data = []
+        for a in full_analyses:
+            if selected_model != 'All' and a['model_name'] != selected_model:
+                continue
+            detailed_data.append({
+                'id': a['id'],
+                'model_name': a['model_name'],
+                'test_date': a['test_date'],
+                'r1_mm': a['r1_mm'],
+                'r2_mm': a['r2_mm'],
+                'amplitude_a1': a['amplitude_a1'],
+                'amplitude_a2': a['amplitude_a2'],
+                'period_t': a['period_t'],
+                'frequency_f': a['frequency_f'],
+                'angular_freq_w': a['angular_freq_w'],
+                'raw_lag_dt': a['raw_lag_dt'],
+                'raw_phase_phi': a['raw_phase_phi'],
+                'ln_term': a['ln_term'],
+                'alpha_combined_raw': a['alpha_combined_raw'],
+                'alpha_combined_cal': a['alpha_combined_cal'],
+                'alpha_phase_raw': a['alpha_phase_raw'],
+                'alpha_phase_cal': a['alpha_phase_cal'],
+                'use_calibration': a['use_calibration'],
+                'system_lag': a['system_lag'],
+                'analysis_mode': a['analysis_mode']
+            })
+        
+        detailed_df = pd.DataFrame(detailed_data)
+        detailed_csv = detailed_df.to_csv(index=False)
+        st.download_button(
+            "📥 Download Full Data (CSV)",
+            data=detailed_csv,
+            file_name="angstrom_results_full.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+    
+    st.divider()
+    
+    # Statistics
+    st.subheader("📈 Statistics")
+    
+    # Extract numeric alpha values for statistics
+    alpha_comb_raw_vals = [a['alpha_combined_raw'] for a in full_analyses if a['alpha_combined_raw'] and a['alpha_combined_raw'] > 0]
+    alpha_comb_cal_vals = [a['alpha_combined_cal'] for a in full_analyses if a['alpha_combined_cal'] and a['alpha_combined_cal'] > 0]
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Total Analyses", len(full_analyses))
+    
+    with col2:
+        st.metric("Unique Models", len(set(a['model_name'] for a in full_analyses)))
+    
+    with col3:
+        if alpha_comb_raw_vals:
+            avg_alpha = np.mean(alpha_comb_raw_vals)
+            st.metric("Avg α (raw)", format_scientific(avg_alpha))
+        else:
+            st.metric("Avg α (raw)", "-")
+    
+    with col4:
+        if alpha_comb_cal_vals:
+            avg_alpha_cal = np.mean(alpha_comb_cal_vals)
+            st.metric("Avg α (cal)", format_scientific(avg_alpha_cal))
+        else:
+            st.metric("Avg α (cal)", "-")
 
 
 def render_history_page():
