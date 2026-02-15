@@ -877,18 +877,24 @@ def render_results_summary_page():
             'ID': a['id'],
             'Model': a['model_name'],
             'Date': a['test_date'],
-            'r₁ (mm)': a['r1_mm'],
-            'r₂ (mm)': a['r2_mm'],
+            'Mode': a['analysis_mode'] or '-',
+            'r₁ (mm)': f"{a['r1_mm']:.2f}" if a['r1_mm'] else '-',
+            'r₂ (mm)': f"{a['r2_mm']:.2f}" if a['r2_mm'] else '-',
             'A₁ (mW)': f"{a['amplitude_a1']:.3f}" if a['amplitude_a1'] else '-',
             'A₂ (mW)': f"{a['amplitude_a2']:.3f}" if a['amplitude_a2'] else '-',
-            'T (s)': f"{a['period_t']:.1f}" if a['period_t'] else '-',
-            'Δt (s)': f"{a['raw_lag_dt']:.1f}" if a['raw_lag_dt'] else '-',
+            'T (s)': f"{a['period_t']:.2f}" if a['period_t'] else '-',
+            'f (Hz)': f"{a['frequency_f']:.6f}" if a['frequency_f'] else '-',
+            'ω (rad/s)': f"{a['angular_freq_w']:.5f}" if a['angular_freq_w'] else '-',
+            'Δt (s)': f"{a['raw_lag_dt']:.2f}" if a['raw_lag_dt'] else '-',
+            'φ (rad)': f"{a['raw_phase_phi']:.4f}" if a['raw_phase_phi'] else '-',
+            'ln term': f"{a['ln_term']:.4f}" if a['ln_term'] else '-',
             'α_comb (raw)': format_scientific(a['alpha_combined_raw']) if a['alpha_combined_raw'] else '-',
-            'α_comb (cal)': format_scientific(a['alpha_combined_cal']) if a['alpha_combined_cal'] and a['alpha_combined_cal'] > 0 else '-',
             'α_phase (raw)': format_scientific(a['alpha_phase_raw']) if a['alpha_phase_raw'] else '-',
+            'Cal': '✓' if a['use_calibration'] else '✗',
+            'Lag (s)': f"{a['system_lag']:.1f}" if a['system_lag'] and a['use_calibration'] else '-',
+            'Net Δt (s)': f"{a['net_lag_dt']:.2f}" if a['net_lag_dt'] and a['use_calibration'] else '-',
+            'α_comb (cal)': format_scientific(a['alpha_combined_cal']) if a['alpha_combined_cal'] and a['alpha_combined_cal'] > 0 else '-',
             'α_phase (cal)': format_scientific(a['alpha_phase_cal']) if a['alpha_phase_cal'] and a['alpha_phase_cal'] > 0 else '-',
-            'Calibrated': '✓' if a['use_calibration'] else '✗',
-            'Mode': a['analysis_mode'] or '-'
         })
     
     df = pd.DataFrame(summary_data)
@@ -914,9 +920,9 @@ def render_results_summary_page():
     if selected_mode != 'All':
         filtered_df = filtered_df[filtered_df['Mode'] == selected_mode]
     if cal_filter == 'Calibrated Only':
-        filtered_df = filtered_df[filtered_df['Calibrated'] == '✓']
+        filtered_df = filtered_df[filtered_df['Cal'] == '✓']
     elif cal_filter == 'Non-Calibrated Only':
-        filtered_df = filtered_df[filtered_df['Calibrated'] == '✗']
+        filtered_df = filtered_df[filtered_df['Cal'] == '✗']
     
     # Show table
     st.dataframe(
@@ -956,6 +962,7 @@ def render_results_summary_page():
                 'id': a['id'],
                 'model_name': a['model_name'],
                 'test_date': a['test_date'],
+                'analysis_mode': a['analysis_mode'],
                 'r1_mm': a['r1_mm'],
                 'r2_mm': a['r2_mm'],
                 'amplitude_a1': a['amplitude_a1'],
@@ -967,12 +974,12 @@ def render_results_summary_page():
                 'raw_phase_phi': a['raw_phase_phi'],
                 'ln_term': a['ln_term'],
                 'alpha_combined_raw': a['alpha_combined_raw'],
-                'alpha_combined_cal': a['alpha_combined_cal'],
                 'alpha_phase_raw': a['alpha_phase_raw'],
-                'alpha_phase_cal': a['alpha_phase_cal'],
                 'use_calibration': a['use_calibration'],
                 'system_lag': a['system_lag'],
-                'analysis_mode': a['analysis_mode']
+                'net_lag_dt': a['net_lag_dt'],
+                'alpha_combined_cal': a['alpha_combined_cal'],
+                'alpha_phase_cal': a['alpha_phase_cal'],
             })
         
         detailed_df = pd.DataFrame(detailed_data)
