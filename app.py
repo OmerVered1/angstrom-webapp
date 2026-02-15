@@ -1068,10 +1068,22 @@ def render_history_page():
     st.subheader("🔍 View Details")
     
     analysis_ids = [a['id'] for a in analyses]
+    
+    def format_analysis_label(aid):
+        a = next((a for a in analyses if a['id'] == aid), None)
+        if not a:
+            return f"ID {aid}: Unknown"
+        label = f"{a['model_name']} | {a['test_date']} | {a['analysis_mode']}"
+        if a['use_calibration']:
+            label += f" | Cal (Lag: {a['system_lag']}s)"
+        else:
+            label += " | No Cal"
+        return label
+    
     selected_id = st.selectbox(
         "Select analysis to view",
         options=analysis_ids,
-        format_func=lambda x: f"ID {x}: {next((a['model_name'] for a in analyses if a['id'] == x), 'Unknown')}"
+        format_func=format_analysis_label
     )
     
     if selected_id:
