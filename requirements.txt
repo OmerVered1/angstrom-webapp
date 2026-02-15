@@ -1,0 +1,7 @@
+# Streamlit Web Application for Radial Heat Wave Analysis
+streamlit>=1.28.0
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.10.0
+plotly>=5.17.0
+kaleido>=0.2.1  # For exporting Plotly figures to images
