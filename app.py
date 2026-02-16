@@ -610,6 +610,17 @@ def render_analysis_page():
         # Save & Export
         st.subheader("💾 Save & Export")
         
+        # Generate dashboard figure and graph bytes (do this BEFORE columns so it's available for save)
+        dashboard_fig = create_dashboard_figure(t_src, v_src, t_cal, v_cal, results, params)
+        
+        # Generate graph bytes and cache in session state
+        if 'cached_graph_bytes' not in st.session_state or st.session_state.get('cached_analysis_id') != id(results):
+            try:
+                st.session_state['cached_graph_bytes'] = fig_to_bytes(dashboard_fig, format='png')
+                st.session_state['cached_analysis_id'] = id(results)
+            except Exception as e:
+                st.session_state['cached_graph_bytes'] = None
+        
         col1, col2, col3 = st.columns(3)
         
         with col1:
@@ -624,7 +635,6 @@ def render_analysis_page():
         
         with col2:
             # Export graph as HTML (interactive)
-            dashboard_fig = create_dashboard_figure(t_src, v_src, t_cal, v_cal, results, params)
             html_data = dashboard_fig.to_html(include_plotlyjs=True, full_html=True)
             st.download_button(
                 "📥 Download Report (HTML)",
@@ -637,11 +647,8 @@ def render_analysis_page():
             # Save to database
             if st.button("💾 Save to Database", type="primary"):
                 try:
-                    # Generate image for database storage
-                    try:
-                        graph_bytes = fig_to_bytes(dashboard_fig, format='png')
-                    except:
-                        graph_bytes = None
+                    # Use cached graph bytes
+                    graph_bytes = st.session_state.get('cached_graph_bytes')
                     
                     analysis_id = db.save_analysis(
                         model_name=params.model_name,
