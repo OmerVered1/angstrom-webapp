@@ -69,15 +69,12 @@ def save_analysis(
     net_lag_dt: float,
     net_phase_phi: float,
     temperature_c: Optional[float] = None,
-    graph_image: Optional[bytes] = None,
+    graph_json: Optional[str] = None,
     extra_data: Optional[Dict] = None
 ) -> int:
     """Save an analysis result to the database. Returns the ID of the new record."""
     
     supabase = get_supabase_client()
-    
-    # Encode graph image to base64 if provided
-    graph_image_b64 = base64.b64encode(graph_image).decode('utf-8') if graph_image else None
     
     # Serialize extra data to JSON
     extra_data_json = json.dumps(extra_data) if extra_data else None
@@ -116,7 +113,7 @@ def save_analysis(
         'net_lag_dt': net_lag_dt,
         'net_phase_phi': net_phase_phi,
         'temperature_c': temperature_c,
-        'graph_image': graph_image_b64,
+        'graph_image': graph_json,  # Store JSON string directly
         'extra_data': extra_data_json
     }
     
@@ -150,9 +147,9 @@ def get_analysis_by_id(analysis_id: int) -> Optional[Dict[str, Any]]:
     
     if result.data and len(result.data) > 0:
         row = result.data[0]
-        # Decode graph image from base64
+        # graph_image now contains JSON string of Plotly figure
         if row.get('graph_image'):
-            row['graph_image_bytes'] = base64.b64decode(row['graph_image'])
+            row['graph_json'] = row['graph_image']
         # Parse extra data from JSON
         if row.get('extra_data'):
             row['extra_data'] = json.loads(row['extra_data'])
