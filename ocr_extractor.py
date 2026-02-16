@@ -233,6 +233,9 @@ def parse_results_from_text(text: str) -> ExtractedResults:
     if ln_term is None:
         ln_term = extract_float_negative(text, r'ln[^=]*[=:]\s*(-?[\d.]+)')
     if ln_term is None:
+        # Look for ln(A1/A2) pattern
+        ln_term = extract_float_negative(text, r'ln\s*\(\s*A\s*[12]\s*/\s*A\s*[12]\s*\)[^=]*[=:\s]*(-?[\d.]+)')
+    if ln_term is None:
         # Look for negative decimal near "ln" 
         match = re.search(r'ln.*?(-\d+\.?\d*)', text, re.IGNORECASE)
         if match:
@@ -245,36 +248,67 @@ def parse_results_from_text(text: str) -> ExtractedResults:
         confidence_count += 1
     total_fields += 1
     
-    # Thermal diffusivity - Combined method (raw)
-    alpha_comb_matches = re.findall(r'α[_\s]*(?:comb|combined)[^:]*(?:raw)?[:\s]*([\d.]+[eE][+-]?\d+)', text, re.IGNORECASE)
-    if alpha_comb_matches:
-        try:
-            results.alpha_combined_raw = float(alpha_comb_matches[0])
-            confidence_count += 1
-        except:
-            pass
+    # Thermal diffusivity - look for various α patterns
+    # Pattern: α_raw, α raw, alpha raw, α_comb, etc.
+    
+    # First try to find α_raw or alpha_raw pattern (simple format from images)
+    alpha_raw = None
+    for pattern in [
+        r'α[_\s]*raw[:\s]*([\d.]+[eE][+-]?\d+)',
+        r'alpha[_\s]*raw[:\s]*([\d.]+[eE][+-]?\d+)',
+        r'α[_\s]*(?:comb|combined)[^:]*(?:raw)?[:\s]*([\d.]+[eE][+-]?\d+)',
+        r'[Rr]aw.*?α[:\s]*([\d.]+[eE][+-]?\d+)',
+        r'α[:\s]*([\d.]+[eE][+-]?\d+)\s*m',  # α: 1.23e-06 m²/s
+    ]:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            try:
+                alpha_raw = float(match.group(1))
+                break
+            except:
+                pass
+    
+    if alpha_raw:
+        results.alpha_combined_raw = alpha_raw
+        confidence_count += 1
     else:
-        # Try to find any scientific notation near "combined" or "comb"
-        for match in re.finditer(r'([\d.]+[eE][+-]?\d+)', text):
-            val = float(match.group(1))
-            if 1e-8 < val < 1e-4:  # Typical range for thermal diffusivity
-                if results.alpha_combined_raw is None:
-                    results.alpha_combined_raw = val
-                    confidence_count += 1
-                elif results.alpha_phase_raw is None:
-                    results.alpha_phase_raw = val
-                    confidence_count += 1
+        # Try to find any scientific notation in typical thermal diffusivity range
+        all_sci = re.findall(r'([\d.]+[eE][+-]?\d+)', text)
+        for val_str in all_sci:
+            try:
+                val = float(val_str)
+                if 1e-10 < val < 1e-4:  # Typical range for thermal diffusivity
+                    if results.alpha_combined_raw is None:
+                        results.alpha_combined_raw = val
+                        confidence_count += 1
+                    elif results.alpha_phase_raw is None:
+                        results.alpha_phase_raw = val
+                        confidence_count += 1
+                    break
+            except:
+                pass
     total_fields += 1
     
-    # Try to find calibrated values
-    alpha_cal_matches = re.findall(r'α[_\s]*(?:comb|combined)[^:]*cal[:\s]*([\d.]+[eE][+-]?\d+)', text, re.IGNORECASE)
-    if alpha_cal_matches:
-        try:
-            results.alpha_combined_cal = float(alpha_cal_matches[0])
-            results.use_calibration = True
-            confidence_count += 1
-        except:
-            pass
+    # Try to find calibrated alpha values: α_cal, alpha_cal, etc.
+    alpha_cal = None
+    for pattern in [
+        r'α[_\s]*cal[:\s]*([\d.]+[eE][+-]?\d+)',
+        r'alpha[_\s]*cal[:\s]*([\d.]+[eE][+-]?\d+)',
+        r'α[_\s]*(?:comb|combined)[^:]*cal[:\s]*([\d.]+[eE][+-]?\d+)',
+        r'[Cc]al.*?α[:\s]*([\d.]+[eE][+-]?\d+)',
+    ]:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            try:
+                alpha_cal = float(match.group(1))
+                break
+            except:
+                pass
+    
+    if alpha_cal:
+        results.alpha_combined_cal = alpha_cal
+        results.use_calibration = True
+        confidence_count += 1
     total_fields += 1
     
     # Phase method
@@ -305,10 +339,19 @@ def parse_results_from_text(text: str) -> ExtractedResults:
         confidence_count += 1
     total_fields += 1
     
-    # Net lag
-    net_lag = extract_float(text, r'Net\s*Lag[:\s]*([\d.]+)')
-    if net_lag is None:
-        net_lag = extract_float(text, r'[Δδ]t[_\s]*net[:\s]*([\d.]+)')
+    # Net lag - various formats: "Net Lag (Δt_cal): 364.82", "Net Δt: 123", etc.
+    net_lag = None
+    for pattern in [
+        r'Net\s*Lag[^:]*[:\s]*([\d.]+)',
+        r'Net\s*[Δδ]t[^:]*[:\s]*([\d.]+)',
+        r'[Δδ]t[_\s]*cal[:\s]*([\d.]+)',
+        r'[Δδ]t[_\s]*net[:\s]*([\d.]+)',
+        r'Calibrated.*?[Δδ]t[:\s]*([\d.]+)',
+    ]:
+        net_lag = extract_float(text, pattern)
+        if net_lag:
+            break
+    
     if net_lag:
         results.net_lag_dt = net_lag
         confidence_count += 1
