@@ -68,6 +68,7 @@ def save_analysis(
     alpha_phase_cal: float,
     net_lag_dt: float,
     net_phase_phi: float,
+    temperature_c: Optional[float] = None,
     graph_image: Optional[bytes] = None,
     extra_data: Optional[Dict] = None
 ) -> int:
@@ -114,6 +115,7 @@ def save_analysis(
         'alpha_phase_cal': alpha_phase_cal,
         'net_lag_dt': net_lag_dt,
         'net_phase_phi': net_phase_phi,
+        'temperature_c': temperature_c,
         'graph_image': graph_image_b64,
         'extra_data': extra_data_json
     }
@@ -134,7 +136,7 @@ def get_all_analyses() -> List[Dict[str, Any]]:
         'r1_mm, r2_mm, amplitude_a1, amplitude_a2, period_t, frequency_f, angular_freq_w, '
         'raw_lag_dt, raw_phase_phi, ln_term, '
         'alpha_combined_raw, alpha_combined_cal, alpha_phase_raw, alpha_phase_cal, '
-        'use_calibration, system_lag, net_lag_dt'
+        'use_calibration, system_lag, net_lag_dt, temperature_c'
     ).order('created_at', desc=True).execute()
     
     return result.data if result.data else []
@@ -174,6 +176,15 @@ def get_analysis_count() -> int:
     result = supabase.table('analyses').select('id', count='exact').execute()
     
     return result.count if result.count else 0
+
+
+def update_model_name(analysis_id: int, new_name: str) -> bool:
+    """Update the model name for an analysis. Returns True if successful."""
+    supabase = get_supabase_client()
+    
+    result = supabase.table('analyses').update({'model_name': new_name}).eq('id', analysis_id).execute()
+    
+    return result.data is not None and len(result.data) > 0
 
 
 # Initialize database on module import

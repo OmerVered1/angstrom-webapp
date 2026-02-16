@@ -404,13 +404,15 @@ def render_analysis_page():
     
     # Metadata
     st.subheader("Experiment Metadata")
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         model_name = st.text_input("Model/Sample Name", "Sample-01")
     with col2:
         test_date = st.text_input("Test Date (DD/MM/YYYY)", datetime.now().strftime("%d/%m/%Y"))
     with col3:
         test_time = st.text_input("Test Time (HH:MM)", datetime.now().strftime("%H:%M"))
+    with col4:
+        temperature_c = st.number_input("Temperature (°C)", value=25.0, min_value=-50.0, max_value=500.0, step=0.1)
     
     col1, col2 = st.columns(2)
     with col1:
@@ -674,6 +676,7 @@ def render_analysis_page():
                         alpha_phase_cal=results.alpha_phase_cal,
                         net_lag_dt=results.net_lag_dt,
                         net_phase_phi=results.net_phase_phi,
+                        temperature_c=temperature_c,
                         graph_image=graph_bytes
                     )
                     st.success(f"✅ Saved to database! (ID: {analysis_id})")
@@ -775,11 +778,13 @@ def render_upload_image_page():
             value=f"{extracted.alpha_phase_cal:.2e}" if extracted.alpha_phase_cal else ""
         )
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         use_calibration = st.checkbox("Used Calibration", value=extracted.use_calibration)
     with col2:
         system_lag = st.number_input("System Lag (s)", value=extracted.system_lag or 105.0)
+    with col3:
+        temperature_c = st.number_input("Temperature (°C)", value=25.0, min_value=-50.0, max_value=500.0, step=0.1)
     
     st.divider()
     
@@ -839,6 +844,7 @@ def render_upload_image_page():
                     alpha_phase_cal=parse_alpha(alpha_phase_cal),
                     net_lag_dt=net_lag_dt,
                     net_phase_phi=0,
+                    temperature_c=temperature_c,
                     graph_image=img_bytes
                 )
                 st.success(f"✅ Saved to database! (ID: {analysis_id})")
@@ -877,12 +883,13 @@ def render_results_summary_page():
             'ID': a['id'],
             'Model': a['model_name'],
             'Date': a['test_date'],
+            'T (°C)': f"{a['temperature_c']:.1f}" if a.get('temperature_c') else '-',
             'Mode': a['analysis_mode'] or '-',
             'r₁ (mm)': f"{a['r1_mm']:.2f}" if a['r1_mm'] else '-',
             'r₂ (mm)': f"{a['r2_mm']:.2f}" if a['r2_mm'] else '-',
             'A₁ (mW)': f"{a['amplitude_a1']:.3f}" if a['amplitude_a1'] else '-',
             'A₂ (mW)': f"{a['amplitude_a2']:.3f}" if a['amplitude_a2'] else '-',
-            'T (s)': f"{a['period_t']:.2f}" if a['period_t'] else '-',
+            'Period (s)': f"{a['period_t']:.2f}" if a['period_t'] else '-',
             'f (Hz)': f"{a['frequency_f']:.6f}" if a['frequency_f'] else '-',
             'ω (rad/s)': f"{a['angular_freq_w']:.5f}" if a['angular_freq_w'] else '-',
             'Δt (s)': f"{a['raw_lag_dt']:.2f}" if a['raw_lag_dt'] else '-',
@@ -936,6 +943,35 @@ def render_results_summary_page():
     
     st.divider()
     
+    # Rename model section
+    st.subheader("✏️ Rename Model")
+    
+    col1, col2, col3 = st.columns([2, 2, 1])
+    with col1:
+        # Select analysis to rename
+        rename_options = [(a['id'], a['model_name']) for a in full_analyses]
+        selected_rename = st.selectbox(
+            "Select analysis to rename",
+            options=[opt[0] for opt in rename_options],
+            format_func=lambda x: f"ID {x}: {next((opt[1] for opt in rename_options if opt[0] == x), 'Unknown')}"
+        )
+    with col2:
+        new_model_name = st.text_input("New model name", key="new_model_name_input")
+    with col3:
+        st.write("")  # Spacer for alignment
+        st.write("")
+        if st.button("💾 Rename", use_container_width=True):
+            if new_model_name and new_model_name.strip():
+                if db.update_model_name(selected_rename, new_model_name.strip()):
+                    st.success(f"Renamed to '{new_model_name}'!")
+                    st.rerun()
+                else:
+                    st.error("Failed to rename")
+            else:
+                st.warning("Enter a new name")
+    
+    st.divider()
+    
     # Export options
     st.subheader("📥 Export Data")
     
@@ -962,6 +998,7 @@ def render_results_summary_page():
                 'id': a['id'],
                 'model_name': a['model_name'],
                 'test_date': a['test_date'],
+                'temperature_c': a.get('temperature_c'),
                 'analysis_mode': a['analysis_mode'],
                 'r1_mm': a['r1_mm'],
                 'r2_mm': a['r2_mm'],
