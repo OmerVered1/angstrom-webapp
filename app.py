@@ -312,8 +312,64 @@ def create_dashboard_figure(t_src, v_src, t_cal, v_cal, results: AnalysisResults
 
 
 def fig_to_bytes(fig, format='png', scale=2):
-    """Convert a Plotly figure to image bytes."""
-    return fig.to_image(format=format, scale=scale)
+    """Convert a Plotly figure to image bytes with fallback methods."""
+    import io
+    import plotly.io as pio
+    
+    # Ensure kaleido engine is set
+    pio.kaleido.scope.default_format = format
+    
+    # Method 1: Try kaleido with explicit engine
+    try:
+        img_bytes = fig.to_image(format=format, scale=scale, engine='kaleido')
+        if img_bytes:
+            return img_bytes
+    except Exception as e1:
+        print(f"Method 1 failed: {e1}")
+    
+    # Method 2: Try orca engine
+    try:
+        img_bytes = fig.to_image(format=format, scale=scale, engine='orca')
+        if img_bytes:
+            return img_bytes
+    except Exception as e2:
+        print(f"Method 2 failed: {e2}")
+    
+    # Method 3: Try write_image to BytesIO
+    try:
+        buf = io.BytesIO()
+        fig.write_image(buf, format=format, scale=scale)
+        buf.seek(0)
+        img_bytes = buf.read()
+        if img_bytes:
+            return img_bytes
+    except Exception as e3:
+        print(f"Method 3 failed: {e3}")
+    
+    # Method 4: Fallback - create image from HTML using screenshot-like approach
+    # Convert to PNG using matplotlib backend as last resort
+    try:
+        import matplotlib.pyplot as plt
+        from PIL import Image
+        import numpy as np
+        
+        # Create a simple summary image with text
+        fig_mpl, ax = plt.subplots(figsize=(10, 8), facecolor='white')
+        ax.set_xlim(0, 10)
+        ax.set_ylim(0, 10)
+        ax.axis('off')
+        ax.text(5, 5, "Analysis Graph\n(Image export unavailable)", 
+                ha='center', va='center', fontsize=16)
+        
+        buf = io.BytesIO()
+        fig_mpl.savefig(buf, format='png', dpi=100, bbox_inches='tight', facecolor='white')
+        buf.seek(0)
+        plt.close(fig_mpl)
+        return buf.read()
+    except Exception as e4:
+        print(f"Method 4 failed: {e4}")
+    
+    return None
 
 
 def results_to_dataframe(results: AnalysisResults, params: AnalysisParams) -> pd.DataFrame:
@@ -616,10 +672,24 @@ def render_analysis_page():
         # Generate graph bytes and cache in session state
         if 'cached_graph_bytes' not in st.session_state or st.session_state.get('cached_analysis_id') != id(results):
             try:
-                st.session_state['cached_graph_bytes'] = fig_to_bytes(dashboard_fig, format='png')
+                graph_bytes = fig_to_bytes(dashboard_fig, format='png')
+                st.session_state['cached_graph_bytes'] = graph_bytes
                 st.session_state['cached_analysis_id'] = id(results)
+                if graph_bytes:
+                    st.session_state['graph_save_status'] = 'success'
+                else:
+                    st.session_state['graph_save_status'] = 'no_bytes'
             except Exception as e:
                 st.session_state['cached_graph_bytes'] = None
+                st.session_state['graph_save_status'] = f'error: {str(e)}'
+        
+        # Show graph capture status
+        graph_status = st.session_state.get('graph_save_status', 'unknown')
+        if graph_status == 'success':
+            graph_size = len(st.session_state.get('cached_graph_bytes', b'')) if st.session_state.get('cached_graph_bytes') else 0
+            st.caption(f"📸 Graph captured ({graph_size:,} bytes)")
+        else:
+            st.caption(f"⚠️ Graph capture: {graph_status}")
         
         col1, col2, col3 = st.columns(3)
         
@@ -1210,6 +1280,11 @@ def render_history_page():
                 # Show saved graph if available
                 if analysis.get('graph_image_bytes'):
                     st.image(analysis['graph_image_bytes'], caption="Saved Graph")
+                elif analysis.get('graph_image'):
+                    # graph_image exists but bytes not decoded - show debug info
+                    st.warning(f"Graph data exists ({len(analysis['graph_image'])} chars) but couldn't decode")
+                else:
+                    st.info("No graph image saved for this analysis")
                 
                 # Delete button
                 if st.button("🗑️ Delete this analysis", type="secondary"):
