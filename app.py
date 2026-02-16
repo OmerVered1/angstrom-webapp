@@ -876,38 +876,39 @@ def render_results_summary_page():
         if full_data:
             full_analyses.append(full_data)
     
-    # Create comprehensive DataFrame
+    # Create comprehensive DataFrame with raw values for editing
     summary_data = []
     for a in full_analyses:
         summary_data.append({
             'ID': a['id'],
             'Model': a['model_name'],
             'Date': a['test_date'],
-            'T (°C)': f"{a['temperature_c']:.1f}" if a.get('temperature_c') else '-',
-            'Mode': a['analysis_mode'] or '-',
-            'r₁ (mm)': f"{a['r1_mm']:.2f}" if a['r1_mm'] else '-',
-            'r₂ (mm)': f"{a['r2_mm']:.2f}" if a['r2_mm'] else '-',
-            'A₁ (mW)': f"{a['amplitude_a1']:.3f}" if a['amplitude_a1'] else '-',
-            'A₂ (mW)': f"{a['amplitude_a2']:.3f}" if a['amplitude_a2'] else '-',
-            'Period (s)': f"{a['period_t']:.2f}" if a['period_t'] else '-',
-            'f (Hz)': f"{a['frequency_f']:.6f}" if a['frequency_f'] else '-',
-            'ω (rad/s)': f"{a['angular_freq_w']:.5f}" if a['angular_freq_w'] else '-',
-            'Δt (s)': f"{a['raw_lag_dt']:.2f}" if a['raw_lag_dt'] else '-',
-            'φ (rad)': f"{a['raw_phase_phi']:.4f}" if a['raw_phase_phi'] else '-',
-            'ln term': f"{a['ln_term']:.4f}" if a['ln_term'] else '-',
-            'α_comb (raw)': format_scientific(a['alpha_combined_raw']) if a['alpha_combined_raw'] else '-',
-            'α_phase (raw)': format_scientific(a['alpha_phase_raw']) if a['alpha_phase_raw'] else '-',
-            'Cal': '✓' if a['use_calibration'] else '✗',
-            'Lag (s)': f"{a['system_lag']:.1f}" if a['system_lag'] and a['use_calibration'] else '-',
-            'Net Δt (s)': f"{a['net_lag_dt']:.2f}" if a['net_lag_dt'] and a['use_calibration'] else '-',
-            'α_comb (cal)': format_scientific(a['alpha_combined_cal']) if a['alpha_combined_cal'] and a['alpha_combined_cal'] > 0 else '-',
-            'α_phase (cal)': format_scientific(a['alpha_phase_cal']) if a['alpha_phase_cal'] and a['alpha_phase_cal'] > 0 else '-',
+            'T (°C)': a.get('temperature_c') or 25.0,
+            'Mode': a['analysis_mode'] or 'Auto',
+            'r₁ (mm)': a['r1_mm'] or 0.0,
+            'r₂ (mm)': a['r2_mm'] or 0.0,
+            'A₁ (mW)': a['amplitude_a1'] or 0.0,
+            'A₂ (mW)': a['amplitude_a2'] or 0.0,
+            'Period (s)': a['period_t'] or 0.0,
+            'f (Hz)': a['frequency_f'] or 0.0,
+            'ω (rad/s)': a['angular_freq_w'] or 0.0,
+            'Δt (s)': a['raw_lag_dt'] or 0.0,
+            'φ (rad)': a['raw_phase_phi'] or 0.0,
+            'ln term': a['ln_term'] or 0.0,
+            'α_comb (raw)': a['alpha_combined_raw'] or 0.0,
+            'α_phase (raw)': a['alpha_phase_raw'] or 0.0,
+            'Calibrated': bool(a['use_calibration']),
+            'Lag (s)': a['system_lag'] or 0.0,
+            'Net Δt (s)': a['net_lag_dt'] or 0.0,
+            'α_comb (cal)': a['alpha_combined_cal'] or 0.0,
+            'α_phase (cal)': a['alpha_phase_cal'] or 0.0,
         })
     
     df = pd.DataFrame(summary_data)
     
     # Display options
-    st.subheader("📊 Summary Table")
+    st.subheader("📊 Editable Summary Table")
+    st.info("💡 Edit any cell directly in the table below, then click 'Save Changes' to update the database.")
     
     # Filter options
     col1, col2, col3 = st.columns(3)
@@ -927,48 +928,92 @@ def render_results_summary_page():
     if selected_mode != 'All':
         filtered_df = filtered_df[filtered_df['Mode'] == selected_mode]
     if cal_filter == 'Calibrated Only':
-        filtered_df = filtered_df[filtered_df['Cal'] == '✓']
+        filtered_df = filtered_df[filtered_df['Calibrated'] == True]
     elif cal_filter == 'Non-Calibrated Only':
-        filtered_df = filtered_df[filtered_df['Cal'] == '✗']
+        filtered_df = filtered_df[filtered_df['Calibrated'] == False]
     
-    # Show table
-    st.dataframe(
+    # Column config for formatting
+    column_config = {
+        'ID': st.column_config.NumberColumn('ID', disabled=True),
+        'Model': st.column_config.TextColumn('Model'),
+        'Date': st.column_config.TextColumn('Date'),
+        'T (°C)': st.column_config.NumberColumn('T (°C)', format="%.1f"),
+        'Mode': st.column_config.SelectboxColumn('Mode', options=['Auto', 'Manual']),
+        'r₁ (mm)': st.column_config.NumberColumn('r₁ (mm)', format="%.2f"),
+        'r₂ (mm)': st.column_config.NumberColumn('r₂ (mm)', format="%.2f"),
+        'A₁ (mW)': st.column_config.NumberColumn('A₁ (mW)', format="%.4f"),
+        'A₂ (mW)': st.column_config.NumberColumn('A₂ (mW)', format="%.4f"),
+        'Period (s)': st.column_config.NumberColumn('Period (s)', format="%.2f"),
+        'f (Hz)': st.column_config.NumberColumn('f (Hz)', format="%.6f"),
+        'ω (rad/s)': st.column_config.NumberColumn('ω (rad/s)', format="%.5f"),
+        'Δt (s)': st.column_config.NumberColumn('Δt (s)', format="%.2f"),
+        'φ (rad)': st.column_config.NumberColumn('φ (rad)', format="%.4f"),
+        'ln term': st.column_config.NumberColumn('ln term', format="%.4f"),
+        'α_comb (raw)': st.column_config.NumberColumn('α_comb (raw)', format="%.2e"),
+        'α_phase (raw)': st.column_config.NumberColumn('α_phase (raw)', format="%.2e"),
+        'Calibrated': st.column_config.CheckboxColumn('Cal'),
+        'Lag (s)': st.column_config.NumberColumn('Lag (s)', format="%.1f"),
+        'Net Δt (s)': st.column_config.NumberColumn('Net Δt (s)', format="%.2f"),
+        'α_comb (cal)': st.column_config.NumberColumn('α_comb (cal)', format="%.2e"),
+        'α_phase (cal)': st.column_config.NumberColumn('α_phase (cal)', format="%.2e"),
+    }
+    
+    # Editable table
+    edited_df = st.data_editor(
         filtered_df,
+        column_config=column_config,
         use_container_width=True,
         hide_index=True,
-        height=400
+        height=400,
+        num_rows="fixed",
+        key="editable_summary_table"
     )
     
     st.caption(f"Showing {len(filtered_df)} of {len(df)} results")
     
-    st.divider()
-    
-    # Rename model section
-    st.subheader("✏️ Rename Model")
-    
-    col1, col2, col3 = st.columns([2, 2, 1])
+    # Save changes button
+    col1, col2 = st.columns([1, 4])
     with col1:
-        # Select analysis to rename
-        rename_options = [(a['id'], a['model_name']) for a in full_analyses]
-        selected_rename = st.selectbox(
-            "Select analysis to rename",
-            options=[opt[0] for opt in rename_options],
-            format_func=lambda x: f"ID {x}: {next((opt[1] for opt in rename_options if opt[0] == x), 'Unknown')}"
-        )
-    with col2:
-        new_model_name = st.text_input("New model name", key="new_model_name_input")
-    with col3:
-        st.write("")  # Spacer for alignment
-        st.write("")
-        if st.button("💾 Rename", use_container_width=True):
-            if new_model_name and new_model_name.strip():
-                if db.update_model_name(selected_rename, new_model_name.strip()):
-                    st.success(f"Renamed to '{new_model_name}'!")
-                    st.rerun()
-                else:
-                    st.error("Failed to rename")
+        if st.button("💾 Save Changes", type="primary", use_container_width=True):
+            changes_made = 0
+            for idx, row in edited_df.iterrows():
+                original_row = filtered_df.loc[idx]
+                
+                # Check if row changed
+                if not row.equals(original_row):
+                    analysis_id = int(row['ID'])
+                    update_data = {
+                        'model_name': row['Model'],
+                        'test_date': row['Date'],
+                        'temperature_c': row['T (°C)'],
+                        'analysis_mode': row['Mode'],
+                        'r1_mm': row['r₁ (mm)'],
+                        'r2_mm': row['r₂ (mm)'],
+                        'amplitude_a1': row['A₁ (mW)'],
+                        'amplitude_a2': row['A₂ (mW)'],
+                        'period_t': row['Period (s)'],
+                        'frequency_f': row['f (Hz)'],
+                        'angular_freq_w': row['ω (rad/s)'],
+                        'raw_lag_dt': row['Δt (s)'],
+                        'raw_phase_phi': row['φ (rad)'],
+                        'ln_term': row['ln term'],
+                        'alpha_combined_raw': row['α_comb (raw)'],
+                        'alpha_phase_raw': row['α_phase (raw)'],
+                        'use_calibration': row['Calibrated'],
+                        'system_lag': row['Lag (s)'],
+                        'net_lag_dt': row['Net Δt (s)'],
+                        'alpha_combined_cal': row['α_comb (cal)'],
+                        'alpha_phase_cal': row['α_phase (cal)'],
+                    }
+                    
+                    if db.update_analysis(analysis_id, update_data):
+                        changes_made += 1
+            
+            if changes_made > 0:
+                st.success(f"✅ Saved {changes_made} change(s)!")
+                st.rerun()
             else:
-                st.warning("Enter a new name")
+                st.info("No changes detected")
     
     st.divider()
     

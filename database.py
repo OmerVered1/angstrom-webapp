@@ -187,5 +187,20 @@ def update_model_name(analysis_id: int, new_name: str) -> bool:
     return result.data is not None and len(result.data) > 0
 
 
+def update_analysis(analysis_id: int, data: Dict[str, Any]) -> bool:
+    """Update any fields for an analysis. Returns True if successful."""
+    supabase = get_supabase_client()
+    
+    # Remove None values and id from update data
+    update_data = {k: v for k, v in data.items() if v is not None and k != 'id'}
+    
+    if not update_data:
+        return False
+    
+    result = supabase.table('analyses').update(update_data).eq('id', analysis_id).execute()
+    
+    return result.data is not None and len(result.data) > 0
+
+
 # Initialize database on module import
 init_database()
