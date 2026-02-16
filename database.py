@@ -1,92 +1,38 @@
 """
 Database module for storing Angstrom analysis results.
-Uses SQLite for persistent storage.
+Uses Supabase for persistent cloud storage.
 """
 
-import sqlite3
 import json
 import os
+import streamlit as st
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 import base64
 
-
-DB_PATH = os.path.join(os.path.dirname(__file__), "angstrom_results.db")
-
-
-def get_connection():
-    """Create and return a database connection."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+# Initialize Supabase client
+def get_supabase_client():
+    """Get Supabase client using credentials from secrets or environment."""
+    from supabase import create_client, Client
+    
+    # Try to get from Streamlit secrets first, then environment variables
+    try:
+        url = st.secrets.get("SUPABASE_URL", os.environ.get("SUPABASE_URL"))
+        key = st.secrets.get("SUPABASE_KEY", os.environ.get("SUPABASE_KEY"))
+    except:
+        url = os.environ.get("SUPABASE_URL")
+        key = os.environ.get("SUPABASE_KEY")
+    
+    if not url or not key:
+        raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set in secrets or environment")
+    
+    return create_client(url, key)
 
 
 def init_database():
-    """Initialize the database with required tables."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS analyses (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            model_name TEXT NOT NULL,
-            test_date TEXT,
-            test_time TEXT,
-            
-            -- Input file info
-            c80_filename TEXT,
-            keithley_filename TEXT,
-            
-            -- Parameters
-            r1_mm REAL,
-            r2_mm REAL,
-            t_cal TEXT,
-            t_src TEXT,
-            c80_time_unit TEXT,
-            c80_pwr_unit TEXT,
-            src_time_unit TEXT,
-            src_pwr_unit TEXT,
-            analysis_mode TEXT,
-            
-            -- Calibration
-            use_calibration INTEGER,
-            system_lag REAL,
-            
-            -- Selection range
-            t_min REAL,
-            t_max REAL,
-            
-            -- Results - Signal Parameters
-            amplitude_a1 REAL,
-            amplitude_a2 REAL,
-            period_t REAL,
-            frequency_f REAL,
-            angular_freq_w REAL,
-            raw_lag_dt REAL,
-            raw_phase_phi REAL,
-            ln_term REAL,
-            
-            -- Results - Thermal Diffusivity
-            alpha_combined_raw REAL,
-            alpha_combined_cal REAL,
-            alpha_phase_raw REAL,
-            alpha_phase_cal REAL,
-            
-            -- Calibrated values
-            net_lag_dt REAL,
-            net_phase_phi REAL,
-            
-            -- Graph image (base64 encoded)
-            graph_image TEXT,
-            
-            -- Full JSON data for any additional info
-            extra_data TEXT
-        )
-    """)
-    
-    conn.commit()
-    conn.close()
+    """Initialize database - table must be created in Supabase dashboard."""
+    # Table is created via Supabase SQL editor, not programmatically
+    pass
 
 
 def save_analysis(
@@ -127,8 +73,7 @@ def save_analysis(
 ) -> int:
     """Save an analysis result to the database. Returns the ID of the new record."""
     
-    conn = get_connection()
-    cursor = conn.cursor()
+    supabase = get_supabase_client()
     
     # Encode graph image to base64 if provided
     graph_image_b64 = base64.b64encode(graph_image).decode('utf-8') if graph_image else None
@@ -136,105 +81,99 @@ def save_analysis(
     # Serialize extra data to JSON
     extra_data_json = json.dumps(extra_data) if extra_data else None
     
-    cursor.execute("""
-        INSERT INTO analyses (
-            model_name, test_date, test_time,
-            c80_filename, keithley_filename,
-            r1_mm, r2_mm, t_cal, t_src,
-            c80_time_unit, c80_pwr_unit, src_time_unit, src_pwr_unit,
-            analysis_mode, use_calibration, system_lag,
-            t_min, t_max,
-            amplitude_a1, amplitude_a2, period_t, frequency_f, angular_freq_w,
-            raw_lag_dt, raw_phase_phi, ln_term,
-            alpha_combined_raw, alpha_combined_cal, alpha_phase_raw, alpha_phase_cal,
-            net_lag_dt, net_phase_phi,
-            graph_image, extra_data
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        model_name, test_date, test_time,
-        c80_filename, keithley_filename,
-        r1_mm, r2_mm, t_cal, t_src,
-        c80_time_unit, c80_pwr_unit, src_time_unit, src_pwr_unit,
-        analysis_mode, int(use_calibration), system_lag,
-        t_min, t_max,
-        amplitude_a1, amplitude_a2, period_t, frequency_f, angular_freq_w,
-        raw_lag_dt, raw_phase_phi, ln_term,
-        alpha_combined_raw, alpha_combined_cal, alpha_phase_raw, alpha_phase_cal,
-        net_lag_dt, net_phase_phi,
-        graph_image_b64, extra_data_json
-    ))
+    data = {
+        'model_name': model_name,
+        'test_date': test_date,
+        'test_time': test_time,
+        'c80_filename': c80_filename,
+        'keithley_filename': keithley_filename,
+        'r1_mm': r1_mm,
+        'r2_mm': r2_mm,
+        't_cal': t_cal,
+        't_src': t_src,
+        'c80_time_unit': c80_time_unit,
+        'c80_pwr_unit': c80_pwr_unit,
+        'src_time_unit': src_time_unit,
+        'src_pwr_unit': src_pwr_unit,
+        'analysis_mode': analysis_mode,
+        'use_calibration': use_calibration,
+        'system_lag': system_lag,
+        't_min': t_min,
+        't_max': t_max,
+        'amplitude_a1': amplitude_a1,
+        'amplitude_a2': amplitude_a2,
+        'period_t': period_t,
+        'frequency_f': frequency_f,
+        'angular_freq_w': angular_freq_w,
+        'raw_lag_dt': raw_lag_dt,
+        'raw_phase_phi': raw_phase_phi,
+        'ln_term': ln_term,
+        'alpha_combined_raw': alpha_combined_raw,
+        'alpha_combined_cal': alpha_combined_cal,
+        'alpha_phase_raw': alpha_phase_raw,
+        'alpha_phase_cal': alpha_phase_cal,
+        'net_lag_dt': net_lag_dt,
+        'net_phase_phi': net_phase_phi,
+        'graph_image': graph_image_b64,
+        'extra_data': extra_data_json
+    }
     
-    analysis_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
+    result = supabase.table('analyses').insert(data).execute()
     
-    return analysis_id
+    if result.data:
+        return result.data[0]['id']
+    return -1
 
 
 def get_all_analyses() -> List[Dict[str, Any]]:
     """Get all analyses from the database."""
-    conn = get_connection()
-    cursor = conn.cursor()
+    supabase = get_supabase_client()
     
-    cursor.execute("""
-        SELECT id, created_at, model_name, test_date, analysis_mode,
-               r1_mm, r2_mm, alpha_combined_raw, alpha_combined_cal,
-               alpha_phase_raw, alpha_phase_cal, use_calibration
-        FROM analyses
-        ORDER BY created_at DESC
-    """)
+    result = supabase.table('analyses').select(
+        'id, created_at, model_name, test_date, analysis_mode, '
+        'r1_mm, r2_mm, amplitude_a1, amplitude_a2, period_t, frequency_f, angular_freq_w, '
+        'raw_lag_dt, raw_phase_phi, ln_term, '
+        'alpha_combined_raw, alpha_combined_cal, alpha_phase_raw, alpha_phase_cal, '
+        'use_calibration, system_lag, net_lag_dt'
+    ).order('created_at', desc=True).execute()
     
-    results = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    
-    return results
+    return result.data if result.data else []
 
 
 def get_analysis_by_id(analysis_id: int) -> Optional[Dict[str, Any]]:
     """Get a specific analysis by ID."""
-    conn = get_connection()
-    cursor = conn.cursor()
+    supabase = get_supabase_client()
     
-    cursor.execute("SELECT * FROM analyses WHERE id = ?", (analysis_id,))
-    row = cursor.fetchone()
-    conn.close()
+    result = supabase.table('analyses').select('*').eq('id', analysis_id).execute()
     
-    if row:
-        result = dict(row)
+    if result.data and len(result.data) > 0:
+        row = result.data[0]
         # Decode graph image from base64
-        if result.get('graph_image'):
-            result['graph_image_bytes'] = base64.b64decode(result['graph_image'])
+        if row.get('graph_image'):
+            row['graph_image_bytes'] = base64.b64decode(row['graph_image'])
         # Parse extra data from JSON
-        if result.get('extra_data'):
-            result['extra_data'] = json.loads(result['extra_data'])
-        return result
+        if row.get('extra_data'):
+            row['extra_data'] = json.loads(row['extra_data'])
+        return row
     return None
 
 
 def delete_analysis(analysis_id: int) -> bool:
     """Delete an analysis by ID. Returns True if successful."""
-    conn = get_connection()
-    cursor = conn.cursor()
+    supabase = get_supabase_client()
     
-    cursor.execute("DELETE FROM analyses WHERE id = ?", (analysis_id,))
-    deleted = cursor.rowcount > 0
+    result = supabase.table('analyses').delete().eq('id', analysis_id).execute()
     
-    conn.commit()
-    conn.close()
-    
-    return deleted
+    return result.data is not None and len(result.data) > 0
 
 
 def get_analysis_count() -> int:
     """Get total number of analyses in the database."""
-    conn = get_connection()
-    cursor = conn.cursor()
+    supabase = get_supabase_client()
     
-    cursor.execute("SELECT COUNT(*) FROM analyses")
-    count = cursor.fetchone()[0]
-    conn.close()
+    result = supabase.table('analyses').select('id', count='exact').execute()
     
-    return count
+    return result.count if result.count else 0
 
 
 # Initialize database on module import

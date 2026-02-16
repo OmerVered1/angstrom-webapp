@@ -9,3 +9,6 @@ Pillow>=9.0.0  # For image handling
 
 # OCR for image text extraction
 easyocr>=1.7.0
+
+# Database
+supabase>=2.0.0
