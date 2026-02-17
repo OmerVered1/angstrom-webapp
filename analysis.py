@@ -524,6 +524,123 @@ def detect_file_type(content: bytes, filename: str) -> str:
     return 'unknown'
 
 
+def extract_date_from_filename(filename: str) -> Optional[str]:
+    """
+    Extract test date from filename.
+    Looks for patterns like:
+    - 160226 (DDMMYY) -> 16/02/2026
+    - 16-02-26, 16.02.26, 16_02_26
+    - 2026-02-16 (YYYY-MM-DD)
+    Returns date in DD/MM/YYYY format or None.
+    """
+    import os
+    # Get just the filename without extension
+    basename = os.path.splitext(os.path.basename(filename))[0]
+    
+    # Pattern 1: DDMMYY (6 digits at end or standalone) - most common for your files
+    match = re.search(r'(\d{2})(\d{2})(\d{2})(?:\D|$)', basename)
+    if match:
+        dd, mm, yy = match.groups()
+        # Assume 20xx for year
+        year = f"20{yy}"
+        try:
+            # Validate it's a real date
+            datetime.strptime(f"{dd}/{mm}/{year}", "%d/%m/%Y")
+            return f"{dd}/{mm}/{year}"
+        except ValueError:
+            pass
+    
+    # Pattern 2: DD-MM-YY or DD.MM.YY or DD_MM_YY
+    match = re.search(r'(\d{2})[-._](\d{2})[-._](\d{2,4})', basename)
+    if match:
+        dd, mm, yy = match.groups()
+        year = f"20{yy}" if len(yy) == 2 else yy
+        try:
+            datetime.strptime(f"{dd}/{mm}/{year}", "%d/%m/%Y")
+            return f"{dd}/{mm}/{year}"
+        except ValueError:
+            pass
+    
+    # Pattern 3: YYYY-MM-DD (ISO format)
+    match = re.search(r'(\d{4})[-._](\d{2})[-._](\d{2})', basename)
+    if match:
+        yyyy, mm, dd = match.groups()
+        try:
+            datetime.strptime(f"{dd}/{mm}/{yyyy}", "%d/%m/%Y")
+            return f"{dd}/{mm}/{yyyy}"
+        except ValueError:
+            pass
+    
+    return None
+
+
+def extract_temperature_from_filename(filename: str) -> Optional[float]:
+    """
+    Extract temperature from filename.
+    Looks for patterns like:
+    - 50c, 50C, 50°C -> 50.0
+    - 100c, 150C -> 100.0, 150.0
+    - temp50, T50
+    Returns temperature as float or None.
+    """
+    import os
+    basename = os.path.splitext(os.path.basename(filename))[0].lower()
+    
+    # Pattern 1: Number followed by 'c' (most common) - e.g., "50c", "100c"
+    match = re.search(r'(\d+(?:\.\d+)?)\s*[°]?c(?:\s|$|[^a-z])', basename)
+    if match:
+        try:
+            return float(match.group(1))
+        except ValueError:
+            pass
+    
+    # Pattern 2: "temp" or "t" followed by number - e.g., "temp50", "t100"
+    match = re.search(r'(?:temp|t)[\s_-]*(\d+(?:\.\d+)?)', basename)
+    if match:
+        try:
+            return float(match.group(1))
+        except ValueError:
+            pass
+    
+    # Pattern 3: Number followed by "deg" or "degrees" - e.g., "50deg"
+    match = re.search(r'(\d+(?:\.\d+)?)\s*(?:deg|degrees)', basename)
+    if match:
+        try:
+            return float(match.group(1))
+        except ValueError:
+            pass
+    
+    return None
+
+
+def extract_sample_name_from_filename(filename: str) -> Optional[str]:
+    """
+    Extract sample/model name from filename.
+    Tries to find meaningful name parts excluding date and temperature.
+    """
+    import os
+    basename = os.path.splitext(os.path.basename(filename))[0]
+    
+    # Remove common prefixes
+    name = re.sub(r'^(?:c80|keithley)\s*', '', basename, flags=re.IGNORECASE)
+    
+    # Remove date patterns (DDMMYY)
+    name = re.sub(r'\d{6}', '', name)
+    
+    # Remove temperature patterns (50c, 100c, etc.)
+    name = re.sub(r'\d+\s*[°]?c(?:\s|$)', '', name, flags=re.IGNORECASE)
+    
+    # Clean up
+    name = re.sub(r'[-_]+', ' ', name)  # Replace separators with spaces
+    name = re.sub(r'\s+', ' ', name)    # Collapse multiple spaces
+    name = name.strip()
+    
+    if name and len(name) > 1:
+        return name.title()  # Capitalize first letter of each word
+    
+    return None
+
+
 def sync_and_filter_data(
     df_cal: pd.DataFrame,
     df_src: pd.DataFrame,

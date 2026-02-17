@@ -17,7 +17,9 @@ from analysis import (
     clean_read, sync_and_filter_data,
     run_auto_analysis, run_manual_analysis,
     auto_detect_peaks, format_scientific,
-    extract_start_time, detect_file_type
+    extract_start_time, detect_file_type,
+    extract_date_from_filename, extract_temperature_from_filename,
+    extract_sample_name_from_filename
 )
 import database as db
 from ocr_extractor import process_image, ExtractedResults
@@ -394,6 +396,11 @@ def render_analysis_page():
     
     col1, col2 = st.columns(2)
     
+    # Variables to store auto-detected values from C80 filename
+    detected_date = None
+    detected_temp = None
+    detected_sample = None
+    
     with col1:
         st.subheader("C80 Calorimeter File")
         c80_file = st.file_uploader("Upload C80 data file", type=['csv', 'txt', 'dat', 'xls', 'xlsx'], key='c80')
@@ -407,6 +414,22 @@ def render_analysis_page():
             if detected_c80_time:
                 c80_default_time = detected_c80_time
                 st.success(f"✓ Detected start time: {detected_c80_time}")
+            
+            # Auto-detect date, temperature, and sample name from filename
+            detected_date = extract_date_from_filename(c80_file.name)
+            detected_temp = extract_temperature_from_filename(c80_file.name)
+            detected_sample = extract_sample_name_from_filename(c80_file.name)
+            
+            # Show what was detected from filename
+            detections = []
+            if detected_date:
+                detections.append(f"Date: {detected_date}")
+            if detected_temp:
+                detections.append(f"Temp: {detected_temp}°C")
+            if detected_sample:
+                detections.append(f"Sample: {detected_sample}")
+            if detections:
+                st.info(f"✓ From filename: {', '.join(detections)}")
         
         c80_time_unit = st.selectbox("Time Unit", ["Seconds", "Minutes", "Hours", "ms"], key='c80_time')
         c80_pwr_unit = st.selectbox("Power Unit", ["mW", "Watts", "uW"], key='c80_pwr')
@@ -432,17 +455,20 @@ def render_analysis_page():
     
     st.divider()
     
-    # Metadata
+    # Metadata - use auto-detected values from C80 filename as defaults
     st.subheader("Experiment Metadata")
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        model_name = st.text_input("Model/Sample Name", "Sample-01")
+        default_sample = detected_sample if detected_sample else "Sample-01"
+        model_name = st.text_input("Model/Sample Name", default_sample)
     with col2:
-        test_date = st.text_input("Test Date (DD/MM/YYYY)", datetime.now().strftime("%d/%m/%Y"))
+        default_date = detected_date if detected_date else datetime.now().strftime("%d/%m/%Y")
+        test_date = st.text_input("Test Date (DD/MM/YYYY)", default_date)
     with col3:
         test_time = st.text_input("Test Time (HH:MM)", datetime.now().strftime("%H:%M"))
     with col4:
-        temperature_c = st.number_input("Temperature (°C)", value=25.0, min_value=-50.0, max_value=500.0, step=0.1)
+        default_temp = detected_temp if detected_temp else 25.0
+        temperature_c = st.number_input("Temperature (°C)", value=default_temp, min_value=-50.0, max_value=500.0, step=0.1)
     
     col1, col2 = st.columns(2)
     with col1:
