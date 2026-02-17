@@ -16,7 +16,8 @@ from analysis import (
     AnalysisParams, AnalysisResults,
     clean_read, sync_and_filter_data,
     run_auto_analysis, run_manual_analysis,
-    auto_detect_peaks, format_scientific
+    auto_detect_peaks, format_scientific,
+    extract_start_time, detect_file_type
 )
 import database as db
 from ocr_extractor import process_image, ExtractedResults
@@ -396,16 +397,38 @@ def render_analysis_page():
     with col1:
         st.subheader("C80 Calorimeter File")
         c80_file = st.file_uploader("Upload C80 data file", type=['csv', 'txt', 'dat', 'xls', 'xlsx'], key='c80')
+        
+        # Auto-detect start time from C80 file
+        c80_default_time = "12:00:00"
+        if c80_file is not None:
+            c80_content = c80_file.read()
+            c80_file.seek(0)  # Reset for later use
+            detected_c80_time = extract_start_time(c80_content, c80_file.name)
+            if detected_c80_time:
+                c80_default_time = detected_c80_time
+                st.success(f"✓ Detected start time: {detected_c80_time}")
+        
         c80_time_unit = st.selectbox("Time Unit", ["Seconds", "Minutes", "Hours", "ms"], key='c80_time')
         c80_pwr_unit = st.selectbox("Power Unit", ["mW", "Watts", "uW"], key='c80_pwr')
-        t_cal = st.text_input("C80 Start Time (HH:MM:SS)", "12:00:00")
+        t_cal = st.text_input("C80 Start Time (HH:MM:SS)", c80_default_time)
     
     with col2:
         st.subheader("Keithley Source File")
         src_file = st.file_uploader("Upload Keithley data file", type=['csv', 'txt', 'dat', 'xls', 'xlsx'], key='src')
+        
+        # Auto-detect start time from Keithley file
+        src_default_time = "12:05:00"
+        if src_file is not None:
+            src_content = src_file.read()
+            src_file.seek(0)  # Reset for later use
+            detected_src_time = extract_start_time(src_content, src_file.name)
+            if detected_src_time:
+                src_default_time = detected_src_time
+                st.success(f"✓ Detected start time: {detected_src_time}")
+        
         src_time_unit = st.selectbox("Time Unit", ["Seconds", "Minutes", "Hours", "ms"], key='src_time')
         src_pwr_unit = st.selectbox("Power Unit", ["Watts", "mW", "uW"], key='src_pwr')
-        t_src = st.text_input("Keithley Start Time (HH:MM:SS)", "12:05:00")
+        t_src = st.text_input("Keithley Start Time (HH:MM:SS)", src_default_time)
     
     st.divider()
     

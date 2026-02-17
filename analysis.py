@@ -350,6 +350,113 @@ def _fallback_parse_dataframe(df: pd.DataFrame) -> Optional[pd.DataFrame]:
     return None
 
 
+def extract_start_time(content: bytes, filename: str) -> Optional[str]:
+    """
+    Extract start time from file header.
+    Returns time in HH:MM:SS format, or None if not found.
+    """
+    filename_lower = filename.lower()
+    
+    # Handle Excel files
+    if filename_lower.endswith(('.xls', '.xlsx')):
+        return _extract_start_time_excel(content)
+    
+    # Handle text files
+    return _extract_start_time_text(content)
+
+
+def _extract_start_time_excel(content: bytes) -> Optional[str]:
+    """Extract start time from Excel file header."""
+    try:
+        excel_file = io.BytesIO(content)
+        try:
+            df_raw = pd.read_excel(excel_file, header=None, engine='xlrd')
+        except Exception:
+            excel_file.seek(0)
+            try:
+                df_raw = pd.read_excel(excel_file, header=None, engine='openpyxl')
+            except Exception:
+                excel_file.seek(0)
+                df_raw = pd.read_excel(excel_file, header=None)
+        
+        # Look for "Zone Start Time" pattern (C80 format)
+        for idx in range(min(15, len(df_raw))):
+            row_text = ' '.join([str(v) for v in df_raw.iloc[idx].values if pd.notna(v)])
+            
+            # C80 pattern: "Zone Start Time : 16/02/2026 12:52:04"
+            if 'zone start time' in row_text.lower():
+                match = re.search(r'(\d{1,2}:\d{2}:\d{2})', row_text)
+                if match:
+                    return match.group(1)
+        
+        return None
+    except Exception:
+        return None
+
+
+def _extract_start_time_text(content: bytes) -> Optional[str]:
+    """Extract start time from text file header."""
+    for enc in ['utf-8-sig', 'utf-8', 'utf-16', 'cp1255', 'latin-1']:
+        try:
+            text = content.decode(enc, errors='ignore')
+            lines = text.splitlines()[:20]  # Check first 20 lines
+            
+            for line in lines:
+                line_lower = line.lower()
+                
+                # Keithley pattern: "# Started: 2026-02-16 14:48:43"
+                if 'started' in line_lower:
+                    match = re.search(r'(\d{1,2}:\d{2}:\d{2})', line)
+                    if match:
+                        return match.group(1)
+                
+                # C80 pattern: "Zone Start Time : 16/02/2026 12:52:04"
+                if 'zone start time' in line_lower:
+                    match = re.search(r'(\d{1,2}:\d{2}:\d{2})', line)
+                    if match:
+                        return match.group(1)
+                
+                # Generic pattern: look for time stamp in header
+                if any(x in line_lower for x in ['start', 'begin', 'date', 'time']):
+                    match = re.search(r'(\d{1,2}:\d{2}:\d{2})', line)
+                    if match:
+                        return match.group(1)
+            
+            return None
+        except Exception:
+            continue
+    
+    return None
+
+
+def detect_file_type(content: bytes, filename: str) -> str:
+    """
+    Detect file type: 'keithley', 'c80', or 'unknown'.
+    """
+    filename_lower = filename.lower()
+    
+    if filename_lower.endswith(('.xls', '.xlsx')):
+        # Excel files are typically C80
+        return 'c80'
+    
+    for enc in ['utf-8-sig', 'utf-8', 'utf-16', 'cp1255', 'latin-1']:
+        try:
+            text = content.decode(enc, errors='ignore')
+            header_text = '\n'.join(text.splitlines()[:15]).lower()
+            
+            if '# run' in header_text or 'elapsed(s)' in header_text or 'power(w)' in header_text:
+                return 'keithley'
+            
+            if 'heatflow' in header_text or ('time(s)' in header_text and 'temperature' in header_text):
+                return 'c80'
+            
+            return 'unknown'
+        except Exception:
+            continue
+    
+    return 'unknown'
+
+
 def sync_and_filter_data(
     df_cal: pd.DataFrame,
     df_src: pd.DataFrame,
