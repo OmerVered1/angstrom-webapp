@@ -586,30 +586,29 @@ def extract_temperature_from_filename(filename: str) -> Optional[float]:
     import os
     basename = os.path.splitext(os.path.basename(filename))[0].lower()
     
+    # Helper to validate temperature range
+    def valid_temp(val):
+        try:
+            fval = float(val)
+            return -50.0 <= fval <= 500.0
+        except Exception:
+            return False
+
     # Pattern 1: Number followed by 'c' (most common) - e.g., "50c", "100c"
     match = re.search(r'(\d+(?:\.\d+)?)\s*[°]?c(?:\s|$|[^a-z])', basename)
-    if match:
-        try:
-            return float(match.group(1))
-        except ValueError:
-            pass
-    
+    if match and valid_temp(match.group(1)):
+        return float(match.group(1))
+
     # Pattern 2: "temp" or "t" followed by number - e.g., "temp50", "t100"
     match = re.search(r'(?:temp|t)[\s_-]*(\d+(?:\.\d+)?)', basename)
-    if match:
-        try:
-            return float(match.group(1))
-        except ValueError:
-            pass
-    
+    if match and valid_temp(match.group(1)):
+        return float(match.group(1))
+
     # Pattern 3: Number followed by "deg" or "degrees" - e.g., "50deg"
     match = re.search(r'(\d+(?:\.\d+)?)\s*(?:deg|degrees)', basename)
-    if match:
-        try:
-            return float(match.group(1))
-        except ValueError:
-            pass
-    
+    if match and valid_temp(match.group(1)):
+        return float(match.group(1))
+
     return None
 
 

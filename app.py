@@ -467,7 +467,11 @@ def render_analysis_page():
     with col3:
         test_time = st.text_input("Test Time (HH:MM)", datetime.now().strftime("%H:%M"))
     with col4:
-        default_temp = detected_temp if detected_temp else 25.0
+        # Only use detected_temp if it's in valid range
+        if detected_temp is not None and -50.0 <= detected_temp <= 500.0:
+            default_temp = detected_temp
+        else:
+            default_temp = 25.0
         temperature_c = st.number_input("Temperature (°C)", value=default_temp, min_value=-50.0, max_value=500.0, step=0.1)
     
     col1, col2 = st.columns(2)
