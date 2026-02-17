@@ -78,7 +78,12 @@ def clean_read(content: bytes, filename: str) -> Optional[pd.DataFrame]:
     
     # Handle Excel files (.xls, .xlsx)
     if filename_lower.endswith(('.xls', '.xlsx')):
-        return _read_excel_file(content, filename)
+        result = _read_excel_file(content, filename)
+        if result is not None:
+            return result
+        # Fallback: some .xls files are actually tab-separated text
+        # Try reading as text file
+        return _read_text_file(content, filename)
     
     # Handle text files (CSV, TXT, DAT)
     return _read_text_file(content, filename)
@@ -89,20 +94,23 @@ def _read_excel_file(content: bytes, filename: str) -> Optional[pd.DataFrame]:
     try:
         # Try reading as Excel
         excel_file = io.BytesIO(content)
+        df_raw = None
         
-        # First, read raw to detect format
-        try:
-            # Try xlrd engine for .xls files
-            df_raw = pd.read_excel(excel_file, header=None, engine='xlrd')
-        except Exception:
-            excel_file.seek(0)
+        # Try different engines
+        engines = ['xlrd', 'openpyxl', None]  # None = let pandas choose
+        for engine in engines:
             try:
-                # Try openpyxl for .xlsx files
-                df_raw = pd.read_excel(excel_file, header=None, engine='openpyxl')
-            except Exception:
                 excel_file.seek(0)
-                # Let pandas choose the engine
-                df_raw = pd.read_excel(excel_file, header=None)
+                if engine:
+                    df_raw = pd.read_excel(excel_file, header=None, engine=engine)
+                else:
+                    df_raw = pd.read_excel(excel_file, header=None)
+                break
+            except Exception:
+                continue
+        
+        if df_raw is None or len(df_raw) == 0:
+            return None
         
         # Look for C80 format markers
         # C80 files have "Time(s)" header and "HeatFlow" somewhere
@@ -110,11 +118,12 @@ def _read_excel_file(content: bytes, filename: str) -> Optional[pd.DataFrame]:
         time_col = None
         power_col = None
         
-        for idx, row in df_raw.iterrows():
+        for idx in range(min(20, len(df_raw))):  # Check first 20 rows
+            row = df_raw.iloc[idx]
             row_str = ' '.join([str(v) for v in row.values if pd.notna(v)]).lower()
             
-            # Look for column headers
-            if 'time' in row_str and ('heatflow' in row_str or 'heat flow' in row_str):
+            # Look for column headers containing time and heatflow
+            if ('time' in row_str) and ('heatflow' in row_str or 'heat flow' in row_str):
                 header_row = idx
                 # Find the column indices
                 for col_idx, val in enumerate(row.values):
@@ -131,14 +140,33 @@ def _read_excel_file(content: bytes, filename: str) -> Optional[pd.DataFrame]:
             data = []
             for idx in range(header_row + 1, len(df_raw)):
                 try:
-                    time_val = float(df_raw.iloc[idx, time_col])
-                    power_val = float(df_raw.iloc[idx, power_col])
+                    time_val = df_raw.iloc[idx, time_col]
+                    power_val = df_raw.iloc[idx, power_col]
+                    
+                    # Handle potential string values with comma decimal
+                    if isinstance(time_val, str):
+                        time_val = float(time_val.replace(',', '.'))
+                    else:
+                        time_val = float(time_val)
+                    
+                    if isinstance(power_val, str):
+                        power_val = float(power_val.replace(',', '.'))
+                    else:
+                        power_val = float(power_val)
+                    
                     data.append([time_val, power_val])
                 except (ValueError, TypeError):
                     continue
             
             if len(data) > 10:
                 return pd.DataFrame(data, columns=['time', 'value'])
+        
+        # Fallback: try first two numeric columns
+        return _fallback_parse_dataframe(df_raw)
+        
+    except Exception as e:
+        print(f"Excel read error: {e}")
+        return None
         
         # Fallback: try first two numeric columns
         return _fallback_parse_dataframe(df_raw)
@@ -257,12 +285,13 @@ def _parse_c80(lines: list) -> Optional[pd.DataFrame]:
     - Metadata header lines
     - Column header: Time(s), Sample Temperature(°C), HeatFlow(mW)
     - Time: col 0, Power: col 2 (HeatFlow)
-    - Tab-separated
+    - Tab or comma separated
     """
     data = []
     time_col = None
     power_col = None
     data_started = False
+    delimiter = '\t'  # Default to tab
     
     for line in lines:
         line = line.strip()
@@ -271,18 +300,37 @@ def _parse_c80(lines: list) -> Optional[pd.DataFrame]:
         if not line:
             continue
         
-        # Split by tab (C80 uses tab separation)
-        row = [v.strip() for v in line.split('\t')]
+        # Try to detect delimiter from header line
+        if not data_started:
+            if '\t' in line:
+                delimiter = '\t'
+            elif ',' in line:
+                delimiter = ','
+            elif ';' in line:
+                delimiter = ';'
+        
+        # Split by detected delimiter
+        row = [v.strip() for v in line.split(delimiter)]
+        
+        # If only one column, try other delimiters
+        if len(row) <= 1 and not data_started:
+            for delim in ['\t', ',', ';']:
+                test_row = [v.strip() for v in line.split(delim)]
+                if len(test_row) > 1:
+                    row = test_row
+                    delimiter = delim
+                    break
         
         # Detect header row
         if not data_started:
             row_lower = [v.lower() for v in row]
+            row_text = ' '.join(row_lower)
             
-            # Find column indices
+            # Find column indices - look for time and heatflow
             for i, col in enumerate(row_lower):
-                if 'time' in col and ('s)' in col or 'sec' in col):
+                if ('time' in col and ('s)' in col or 'sec' in col or col == 'time')):
                     time_col = i
-                elif 'heatflow' in col or 'heat flow' in col:
+                elif 'heatflow' in col or 'heat flow' in col or 'heat_flow' in col:
                     power_col = i
             
             # If we found the columns, mark header found
@@ -294,8 +342,8 @@ def _parse_c80(lines: list) -> Optional[pd.DataFrame]:
         if data_started and time_col is not None and power_col is not None:
             try:
                 if len(row) > max(time_col, power_col):
-                    time_val = float(row[time_col])
-                    power_val = float(row[power_col])
+                    time_val = float(row[time_col].replace(',', '.'))
+                    power_val = float(row[power_col].replace(',', '.'))
                     data.append([time_val, power_val])
             except (ValueError, IndexError):
                 continue
@@ -359,7 +407,11 @@ def extract_start_time(content: bytes, filename: str) -> Optional[str]:
     
     # Handle Excel files
     if filename_lower.endswith(('.xls', '.xlsx')):
-        return _extract_start_time_excel(content)
+        result = _extract_start_time_excel(content)
+        if result:
+            return result
+        # Fallback: some .xls files are actually text
+        return _extract_start_time_text(content)
     
     # Handle text files
     return _extract_start_time_text(content)
@@ -369,15 +421,22 @@ def _extract_start_time_excel(content: bytes) -> Optional[str]:
     """Extract start time from Excel file header."""
     try:
         excel_file = io.BytesIO(content)
-        try:
-            df_raw = pd.read_excel(excel_file, header=None, engine='xlrd')
-        except Exception:
-            excel_file.seek(0)
+        df_raw = None
+        
+        # Try different engines
+        for engine in ['xlrd', 'openpyxl', None]:
             try:
-                df_raw = pd.read_excel(excel_file, header=None, engine='openpyxl')
-            except Exception:
                 excel_file.seek(0)
-                df_raw = pd.read_excel(excel_file, header=None)
+                if engine:
+                    df_raw = pd.read_excel(excel_file, header=None, engine=engine)
+                else:
+                    df_raw = pd.read_excel(excel_file, header=None)
+                break
+            except Exception:
+                continue
+        
+        if df_raw is None:
+            return None
         
         # Look for "Zone Start Time" pattern (C80 format)
         for idx in range(min(15, len(df_raw))):
@@ -401,14 +460,9 @@ def _extract_start_time_text(content: bytes) -> Optional[str]:
             text = content.decode(enc, errors='ignore')
             lines = text.splitlines()[:20]  # Check first 20 lines
             
+            # First pass: look for specific patterns (more reliable)
             for line in lines:
                 line_lower = line.lower()
-                
-                # Keithley pattern: "# Started: 2026-02-16 14:48:43"
-                if 'started' in line_lower:
-                    match = re.search(r'(\d{1,2}:\d{2}:\d{2})', line)
-                    if match:
-                        return match.group(1)
                 
                 # C80 pattern: "Zone Start Time : 16/02/2026 12:52:04"
                 if 'zone start time' in line_lower:
@@ -416,8 +470,21 @@ def _extract_start_time_text(content: bytes) -> Optional[str]:
                     if match:
                         return match.group(1)
                 
-                # Generic pattern: look for time stamp in header
-                if any(x in line_lower for x in ['start', 'begin', 'date', 'time']):
+                # Keithley pattern: "# Started: 2026-02-16 14:48:43"
+                if line.strip().startswith('#') and 'started' in line_lower:
+                    match = re.search(r'(\d{1,2}:\d{2}:\d{2})', line)
+                    if match:
+                        return match.group(1)
+            
+            # Second pass: generic fallback (less reliable)
+            for line in lines:
+                line_lower = line.lower()
+                # Skip lines that are clearly not start times
+                if 'creation' in line_lower or 'user' in line_lower:
+                    continue
+                    
+                # Look for lines that might contain start time
+                if any(x in line_lower for x in ['start time', 'begin', 'started']):
                     match = re.search(r'(\d{1,2}:\d{2}:\d{2})', line)
                     if match:
                         return match.group(1)
