@@ -71,29 +71,281 @@ POWER_FACTORS = {"mW": 1.0, "Watts": 1000.0, "uW": 0.001}
 
 def clean_read(content: bytes, filename: str) -> Optional[pd.DataFrame]:
     """
-    Parse CSV/TSV data from uploaded file content.
-    Tries multiple encodings and delimiters.
+    Parse CSV/TSV/XLS data from uploaded file content.
+    Automatically detects Keithley and C80 file formats.
     """
-    for enc in ['utf-16', 'utf-8-sig', 'utf-8', 'cp1255', 'latin-1']:
+    filename_lower = filename.lower()
+    
+    # Handle Excel files (.xls, .xlsx)
+    if filename_lower.endswith(('.xls', '.xlsx')):
+        return _read_excel_file(content, filename)
+    
+    # Handle text files (CSV, TXT, DAT)
+    return _read_text_file(content, filename)
+
+
+def _read_excel_file(content: bytes, filename: str) -> Optional[pd.DataFrame]:
+    """Read Excel file, detecting C80 format."""
+    try:
+        # Try reading as Excel
+        excel_file = io.BytesIO(content)
+        
+        # First, read raw to detect format
         try:
-            text = content.decode(enc, errors='ignore')
-            lines = text.splitlines()
-            data = []
+            # Try xlrd engine for .xls files
+            df_raw = pd.read_excel(excel_file, header=None, engine='xlrd')
+        except Exception:
+            excel_file.seek(0)
+            try:
+                # Try openpyxl for .xlsx files
+                df_raw = pd.read_excel(excel_file, header=None, engine='openpyxl')
+            except Exception:
+                excel_file.seek(0)
+                # Let pandas choose the engine
+                df_raw = pd.read_excel(excel_file, header=None)
+        
+        # Look for C80 format markers
+        # C80 files have "Time(s)" header and "HeatFlow" somewhere
+        header_row = None
+        time_col = None
+        power_col = None
+        
+        for idx, row in df_raw.iterrows():
+            row_str = ' '.join([str(v) for v in row.values if pd.notna(v)]).lower()
             
-            for line in lines:
-                row = re.split(r'[,\t;]', line.strip())
-                if len(row) >= 2:
-                    try:
-                        time_val = float(row[0].replace('"', '').strip())
-                        value_val = float(row[1].replace('"', '').strip())
-                        data.append([time_val, value_val])
-                    except (ValueError, IndexError):
-                        continue
+            # Look for column headers
+            if 'time' in row_str and ('heatflow' in row_str or 'heat flow' in row_str):
+                header_row = idx
+                # Find the column indices
+                for col_idx, val in enumerate(row.values):
+                    if pd.notna(val):
+                        val_str = str(val).lower()
+                        if 'time' in val_str and time_col is None:
+                            time_col = col_idx
+                        elif 'heatflow' in val_str or 'heat flow' in val_str:
+                            power_col = col_idx
+                break
+        
+        if header_row is not None and time_col is not None and power_col is not None:
+            # Read data starting from row after header
+            data = []
+            for idx in range(header_row + 1, len(df_raw)):
+                try:
+                    time_val = float(df_raw.iloc[idx, time_col])
+                    power_val = float(df_raw.iloc[idx, power_col])
+                    data.append([time_val, power_val])
+                except (ValueError, TypeError):
+                    continue
             
             if len(data) > 10:
                 return pd.DataFrame(data, columns=['time', 'value'])
-        except Exception:
+        
+        # Fallback: try first two numeric columns
+        return _fallback_parse_dataframe(df_raw)
+        
+    except Exception as e:
+        print(f"Excel read error: {e}")
+        return None
+
+
+def _read_text_file(content: bytes, filename: str) -> Optional[pd.DataFrame]:
+    """Read text file, detecting Keithley or C80 format."""
+    for enc in ['utf-8-sig', 'utf-8', 'utf-16', 'cp1255', 'latin-1']:
+        try:
+            text = content.decode(enc, errors='ignore')
+            lines = text.splitlines()
+            
+            if not lines:
+                continue
+            
+            # Detect file format
+            format_type = _detect_format(lines)
+            
+            if format_type == 'keithley':
+                return _parse_keithley(lines)
+            elif format_type == 'c80':
+                return _parse_c80(lines)
+            else:
+                # Generic fallback parser
+                return _parse_generic(lines)
+                
+        except Exception as e:
             continue
+    
+    return None
+
+
+def _detect_format(lines: list) -> str:
+    """Detect the file format based on content."""
+    header_text = '\n'.join(lines[:15]).lower()
+    
+    # Keithley format: starts with "# Run" comments and has specific columns
+    if '# run' in header_text or 'elapsed(s)' in header_text or 'power(w)' in header_text:
+        return 'keithley'
+    
+    # C80 format: has "HeatFlow" and "Time(s)" patterns
+    if 'heatflow' in header_text or ('time(s)' in header_text and 'temperature' in header_text):
+        return 'c80'
+    
+    return 'generic'
+
+
+def _parse_keithley(lines: list) -> Optional[pd.DataFrame]:
+    """
+    Parse Keithley format:
+    - Header lines start with #
+    - Column header: Index,Computer_Time,Elapsed(s),Voltage(V),Current(A),Resistance(Ohm),Power(W)
+    - Time: Elapsed(s) (col 2), Power: Power(W) (col 6) (0-indexed)
+    """
+    data = []
+    time_col = None
+    power_col = None
+    data_started = False
+    
+    for line in lines:
+        line = line.strip()
+        
+        # Skip empty lines
+        if not line:
+            continue
+        
+        # Skip comment lines
+        if line.startswith('#'):
+            continue
+        
+        # Split by comma
+        row = [v.strip() for v in line.split(',')]
+        
+        # Detect header row
+        if not data_started:
+            row_lower = [v.lower() for v in row]
+            
+            # Find column indices
+            for i, col in enumerate(row_lower):
+                if 'elapsed' in col and ('s)' in col or 'sec' in col):
+                    time_col = i
+                elif 'power' in col and ('w)' in col or 'watt' in col):
+                    power_col = i
+            
+            # If we found the columns, mark header found
+            if time_col is not None and power_col is not None:
+                data_started = True
+                continue
+            elif time_col is not None or power_col is not None:
+                # Partial match, keep looking
+                continue
+        
+        # Parse data row
+        if data_started and time_col is not None and power_col is not None:
+            try:
+                if len(row) > max(time_col, power_col):
+                    time_val = float(row[time_col])
+                    power_val = float(row[power_col])
+                    data.append([time_val, power_val])
+            except (ValueError, IndexError):
+                continue
+    
+    if len(data) > 10:
+        return pd.DataFrame(data, columns=['time', 'value'])
+    
+    return None
+
+
+def _parse_c80(lines: list) -> Optional[pd.DataFrame]:
+    """
+    Parse C80 format:
+    - Metadata header lines
+    - Column header: Time(s), Sample Temperature(°C), HeatFlow(mW)
+    - Time: col 0, Power: col 2 (HeatFlow)
+    - Tab-separated
+    """
+    data = []
+    time_col = None
+    power_col = None
+    data_started = False
+    
+    for line in lines:
+        line = line.strip()
+        
+        # Skip empty lines
+        if not line:
+            continue
+        
+        # Split by tab (C80 uses tab separation)
+        row = [v.strip() for v in line.split('\t')]
+        
+        # Detect header row
+        if not data_started:
+            row_lower = [v.lower() for v in row]
+            
+            # Find column indices
+            for i, col in enumerate(row_lower):
+                if 'time' in col and ('s)' in col or 'sec' in col):
+                    time_col = i
+                elif 'heatflow' in col or 'heat flow' in col:
+                    power_col = i
+            
+            # If we found the columns, mark header found
+            if time_col is not None and power_col is not None:
+                data_started = True
+                continue
+        
+        # Parse data row
+        if data_started and time_col is not None and power_col is not None:
+            try:
+                if len(row) > max(time_col, power_col):
+                    time_val = float(row[time_col])
+                    power_val = float(row[power_col])
+                    data.append([time_val, power_val])
+            except (ValueError, IndexError):
+                continue
+    
+    if len(data) > 10:
+        return pd.DataFrame(data, columns=['time', 'value'])
+    
+    return None
+
+
+def _parse_generic(lines: list) -> Optional[pd.DataFrame]:
+    """Generic parser - tries to find first two numeric columns."""
+    data = []
+    
+    for line in lines:
+        row = re.split(r'[,\t;]', line.strip())
+        if len(row) >= 2:
+            try:
+                time_val = float(row[0].replace('"', '').strip())
+                value_val = float(row[1].replace('"', '').strip())
+                data.append([time_val, value_val])
+            except (ValueError, IndexError):
+                continue
+    
+    if len(data) > 10:
+        return pd.DataFrame(data, columns=['time', 'value'])
+    
+    return None
+
+
+def _fallback_parse_dataframe(df: pd.DataFrame) -> Optional[pd.DataFrame]:
+    """Fallback: find first two numeric columns in a DataFrame."""
+    data = []
+    
+    for idx in range(len(df)):
+        row_vals = []
+        for col in range(len(df.columns)):
+            try:
+                val = float(df.iloc[idx, col])
+                row_vals.append(val)
+                if len(row_vals) == 2:
+                    break
+            except (ValueError, TypeError):
+                continue
+        
+        if len(row_vals) == 2:
+            data.append(row_vals)
+    
+    if len(data) > 10:
+        return pd.DataFrame(data, columns=['time', 'value'])
     
     return None
 

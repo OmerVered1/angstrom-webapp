@@ -395,14 +395,14 @@ def render_analysis_page():
     
     with col1:
         st.subheader("C80 Calorimeter File")
-        c80_file = st.file_uploader("Upload C80 data file", type=['csv', 'txt', 'dat'], key='c80')
+        c80_file = st.file_uploader("Upload C80 data file", type=['csv', 'txt', 'dat', 'xls', 'xlsx'], key='c80')
         c80_time_unit = st.selectbox("Time Unit", ["Seconds", "Minutes", "Hours", "ms"], key='c80_time')
         c80_pwr_unit = st.selectbox("Power Unit", ["mW", "Watts", "uW"], key='c80_pwr')
         t_cal = st.text_input("C80 Start Time (HH:MM:SS)", "12:00:00")
     
     with col2:
         st.subheader("Keithley Source File")
-        src_file = st.file_uploader("Upload Keithley data file", type=['csv', 'txt', 'dat'], key='src')
+        src_file = st.file_uploader("Upload Keithley data file", type=['csv', 'txt', 'dat', 'xls', 'xlsx'], key='src')
         src_time_unit = st.selectbox("Time Unit", ["Seconds", "Minutes", "Hours", "ms"], key='src_time')
         src_pwr_unit = st.selectbox("Power Unit", ["Watts", "mW", "uW"], key='src_pwr')
         t_src = st.text_input("Keithley Start Time (HH:MM:SS)", "12:05:00")
