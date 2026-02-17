@@ -1214,38 +1214,48 @@ def render_history_page():
             with col1:
                 st.write("**Full Details:**")
                 
+                # Helper function to safely format values
+                def safe_format(val, fmt=".2f", suffix=""):
+                    if val is None or val == 0:
+                        return "N/A"
+                    try:
+                        return f"{val:{fmt}}{suffix}"
+                    except:
+                        return str(val)
+                
                 # Create detailed view
                 details = {
-                    'Created': analysis['created_at'],
-                    'Model': analysis['model_name'],
-                    'Test Date': analysis['test_date'],
-                    'Radii': f"r₁={analysis['r1_mm']}mm, r₂={analysis['r2_mm']}mm",
-                    'Period T': f"{analysis['period_t']:.2f}s",
-                    'Frequency': f"{analysis['frequency_f']:.5f}Hz",
-                    'Raw Δt': f"{analysis['raw_lag_dt']:.2f}s",
-                    'α Combined (raw)': format_scientific(analysis['alpha_combined_raw']),
-                    'α Phase (raw)': format_scientific(analysis['alpha_phase_raw']),
+                    'Created': analysis.get('created_at', 'N/A'),
+                    'Model': analysis.get('model_name', 'N/A'),
+                    'Test Date': analysis.get('test_date', 'N/A'),
+                    'Radii': f"r₁={analysis.get('r1_mm', 'N/A')}mm, r₂={analysis.get('r2_mm', 'N/A')}mm",
+                    'Period T': safe_format(analysis.get('period_t'), ".2f", "s"),
+                    'Frequency': safe_format(analysis.get('frequency_f'), ".5f", "Hz"),
+                    'Raw Δt': safe_format(analysis.get('raw_lag_dt'), ".2f", "s"),
+                    'α Combined (raw)': format_scientific(analysis.get('alpha_combined_raw')),
+                    'α Phase (raw)': format_scientific(analysis.get('alpha_phase_raw')),
                 }
                 
-                if analysis['use_calibration']:
-                    details['System Lag'] = f"{analysis['system_lag']}s"
-                    details['Net Δt'] = f"{analysis['net_lag_dt']:.2f}s"
-                    details['α Combined (cal)'] = format_scientific(analysis['alpha_combined_cal'])
-                    details['α Phase (cal)'] = format_scientific(analysis['alpha_phase_cal'])
+                if analysis.get('use_calibration'):
+                    details['System Lag'] = f"{analysis.get('system_lag', 0)}s"
+                    details['Net Δt'] = safe_format(analysis.get('net_lag_dt'), ".2f", "s")
+                    details['α Combined (cal)'] = format_scientific(analysis.get('alpha_combined_cal'))
+                    details['α Phase (cal)'] = format_scientific(analysis.get('alpha_phase_cal'))
                 
                 for k, v in details.items():
                     st.write(f"**{k}:** {v}")
             
             with col2:
                 # Show saved graph if available (now stored as JSON)
-                if analysis.get('graph_json'):
+                graph_json = analysis.get('graph_json')
+                if graph_json and isinstance(graph_json, str) and len(graph_json) > 10:
                     try:
-                        saved_fig = json_to_fig(analysis['graph_json'])
+                        saved_fig = json_to_fig(graph_json)
                         st.plotly_chart(saved_fig, use_container_width=True)
                     except Exception as e:
                         st.warning(f"Could not display graph: {str(e)}")
                 else:
-                    st.info("No graph saved for this analysis")
+                    st.info("No graph saved for this analysis (uploaded from image)")
                 
                 # Delete button
                 if st.button("🗑️ Delete this analysis", type="secondary"):

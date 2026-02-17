@@ -148,8 +148,12 @@ def get_analysis_by_id(analysis_id: int) -> Optional[Dict[str, Any]]:
     if result.data and len(result.data) > 0:
         row = result.data[0]
         # graph_image now contains JSON string of Plotly figure
-        if row.get('graph_image'):
-            row['graph_json'] = row['graph_image']
+        # Only set graph_json if we have a valid non-empty string
+        graph_val = row.get('graph_image')
+        if graph_val and isinstance(graph_val, str) and len(graph_val) > 10:
+            row['graph_json'] = graph_val
+        else:
+            row['graph_json'] = None
         # Parse extra data from JSON
         if row.get('extra_data'):
             row['extra_data'] = json.loads(row['extra_data'])
