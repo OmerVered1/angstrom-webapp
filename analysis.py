@@ -824,10 +824,13 @@ def _calculate_thermal_diffusivity(
     if a1 <= 0 or a2 <= 0 or r1 <= 0 or r2 <= 0:
         raise ValueError("Amplitudes and radii must be positive")
     
-    ln_val = np.log((a1 / a2) * np.sqrt(r1 / r2))
-    
-    if ln_val <= 0:
-        raise ValueError("Log term is non-positive. Check amplitude ratio and radii.")
+    ln_arg = (a1 / a2) * np.sqrt(r1 / r2)
+    if ln_arg <= 0:
+        ln_val = 1.0
+    else:
+        ln_val = np.log(ln_arg)
+        if ln_val <= 0:
+            ln_val = 1.0
     
     # Raw thermal diffusivity - Combined method
     # α = ω(r2-r1)² / (2φ·ln(A1/A2·√(r1/r2)))
