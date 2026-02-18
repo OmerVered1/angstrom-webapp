@@ -1,6 +1,6 @@
 # Radial Heat Wave Analysis - Web Application
 
-A Streamlit-based web application for thermal diffusivity measurement using the Angstrom (radial heat wave) method.
+A web application for analysis of thermal diffusivity measurement using radial modified Angstrom method.
 
 ## Features
 
