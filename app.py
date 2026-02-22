@@ -371,7 +371,7 @@ def main():
         st.header("Navigation")
         page = st.radio(
             "Select Page",
-            ["📊 New Analysis", "📷 Upload Results Image", "📋 Results Summary", "📁 Results History"],
+            ["📊 New Analysis", "📷 Upload Results Image", "📋 Results Summary", "📁 Results History", "📐 Theory & Mathematical Evolution"],
             index=0
         )
         
@@ -384,8 +384,10 @@ def main():
         render_upload_image_page()
     elif page == "📋 Results Summary":
         render_results_summary_page()
-    else:
+    elif page == "📁 Results History":
         render_history_page()
+    else:
+        render_theory_page()
 
 
 def render_analysis_page():
@@ -1294,6 +1296,221 @@ def render_history_page():
                         st.rerun()
                     else:
                         st.error("Failed to delete.")
+
+
+def render_theory_page():
+    """Render the Theory & Mathematical Evolution page."""
+    st.title("📐 Theory & Mathematical Evolution")
+    st.caption("Comprehensive Mathematical Evolution of Radial Thermal Diffusivity")
+
+    # ── Literature Review ──────────────────────────────────────────────────────
+    st.header("Literature Review: The Evolution of Periodic Heat Methods")
+    st.markdown(
+        """
+The determination of thermal diffusivity through periodic heat flow, often referred to as the
+**"wave method"**, has its roots in the 19th century and has evolved significantly to accommodate
+modern materials and cylindrical geometries.
+"""
+    )
+
+    with st.expander("📜 The Ångström Method (1861)", expanded=True):
+        st.markdown(
+            """
+The foundational work for periodic thermal analysis was established by **Anders Jonas Ångström**
+in his 1861 paper, *"Neue Methode das Wärmeleitungsvermögen der Körper zu bestimmen"*.
+
+Ångström's method involved applying a **periodic (sinusoidal) heat source** to one end of a long,
+thin rod and measuring the resulting temperature oscillations at two distinct points downstream.
+
+By analysing the **phase shift** and the **amplitude attenuation** between these two points,
+Ångström demonstrated that the thermal diffusivity (α) could be determined independently of the
+heat source's absolute intensity.
+
+The core principle — that the velocity and decay of a thermal wave are intrinsic to the material's
+diffusivity — remains the basis for the derivation in this document.
+"""
+        )
+
+    with st.expander("🔬 Cowan's Advancements (1961–1963)", expanded=True):
+        st.markdown(
+            """
+In the mid-20th century, **R. D. Cowan** extended the utility of periodic heat methods to address
+the challenges of high-temperature measurements and diverse sample geometries.
+
+**Cowan (1961)** — *"Proposed Method of Measuring Thermal Diffusivity at High Temperatures"*
+(Journal of Applied Physics):
+Introduced the flash method and its periodic variants, specifically addressing the influence of
+thermal radiation. Developed mathematical corrections for heat losses at the surfaces of thin
+plates and disks, critical for accurately testing refractory metals at high temperatures.
+
+**Cowan (1963)** — *"Proposed Method of Measuring Thermal Diffusivity at High Temperatures
+(Part II)"*:
+Further refined the analysis of periodic heat flow, focusing on the phase relationship between the
+front and back surfaces of a sample. Proved that the **phase lag is a robust indicator of
+diffusivity** even when the sample is subject to significant radiative cooling.
+
+Cowan's work provided the bridge between Ångström's simple 1-D rod model and the complex,
+multi-dimensional **radial models** used in modern laboratory settings.
+"""
+        )
+
+    st.divider()
+
+    # ── Mathematical Derivation ────────────────────────────────────────────────
+    st.header("Mathematical Derivation")
+
+    # Step 1
+    st.subheader("1. The Fundamental Heat Diffusion Equation")
+    st.markdown(
+        "The derivation begins with the general energy balance in a solid, isotropic medium. "
+        "Based on Fourier's Law and conservation of energy, the temperature field *T* is governed by:"
+    )
+    st.latex(r"\frac{\partial T}{\partial t} = \alpha \nabla^2 T")
+    st.markdown(
+        "In a cylindrical system where a linear heat source is applied along the *z*-axis, we assume "
+        "angular (θ) and longitudinal (*z*) symmetry. This reduces the Laplacian to its radial component:"
+    )
+    st.latex(
+        r"\frac{1}{\alpha}\frac{\partial T}{\partial t} = "
+        r"\frac{\partial^2 T}{\partial r^2} + \frac{1}{r}\frac{\partial T}{\partial r}"
+    )
+
+    # Step 2
+    st.subheader("2. Accounting for Environmental Heat Loss")
+    st.markdown(
+        "In experimental conditions, the sample is not perfectly insulated. "
+        "A linear heat loss term is introduced to represent convective and radiative exchange "
+        "with the surroundings, yielding the **non-adiabatic radial heat equation**:"
+    )
+    st.latex(
+        r"\frac{1}{\alpha}\frac{\partial T}{\partial t} = "
+        r"\frac{\partial^2 T}{\partial r^2} + \frac{1}{r}\frac{\partial T}{\partial r} "
+        r"- \mu^2\!\left(T - T_\infty\right)"
+    )
+    st.markdown(
+        """
+| Symbol | Meaning |
+|--------|---------|
+| α | Thermal diffusivity (m²/s) |
+| μ² | Heat loss coefficient (m⁻²), defined as *hP/kS* for a cylindrical geometry |
+| T∞ | Ambient temperature |
+"""
+    )
+
+    # Step 3
+    st.subheader("3. Harmonic Transformation for Periodic Sources")
+    st.markdown(
+        "When the heat source is modulated at angular frequency ω = 2π/T, the transient "
+        "response decays, leaving a steady-state harmonic oscillation. "
+        "The temperature is represented as a complex variable:"
+    )
+    st.latex(r"T(r,t) - T_\infty = \theta(r)\,e^{i\omega t}")
+    st.markdown(
+        "Substituting into the radial heat equation and dividing by the common factor *e^(iωt)*:"
+    )
+    st.latex(
+        r"\frac{i\omega}{\alpha}\,\theta = "
+        r"\frac{d^2\theta}{dr^2} + \frac{1}{r}\frac{d\theta}{dr} - \mu^2\theta"
+    )
+
+    # Step 4
+    st.subheader("4. The Modified Bessel Equation of Order Zero")
+    st.markdown("Rearranging yields a standard ODE:")
+    st.latex(
+        r"\frac{d^2\theta}{dr^2} + \frac{1}{r}\frac{d\theta}{dr} "
+        r"- \left(\frac{i\omega}{\alpha} + \mu^2\right)\theta = 0"
+    )
+    st.markdown("We define the **Complex Propagation Constant** λ:")
+    st.latex(r"\lambda = \sqrt{\dfrac{i\omega}{\alpha} + \mu^2}")
+    st.markdown(
+        "The spatial temperature θ(*r*) is solved using modified Bessel functions. "
+        "For an infinite medium (T → 0 as r → ∞), we use the modified Bessel function "
+        "of the second kind, K₀:"
+    )
+    st.latex(r"\theta(r) = C \cdot K_0(r\lambda)")
+
+    # Step 5
+    st.subheader("5. Dual-Sensor Analysis and Asymptotic Expansion")
+    st.markdown(
+        "Temperature oscillations are measured at two radii, *r₁* and *r₂*. "
+        "Analysing the ratio eliminates the source constant *C*:"
+    )
+    st.latex(
+        r"\frac{\theta(r_2)}{\theta(r_1)} = \frac{A_2}{A_1}e^{-i\phi} "
+        r"= \frac{K_0(r_2\lambda)}{K_0(r_1\lambda)}"
+    )
+    st.markdown(
+        r"Using the asymptotic expansion $K_0(z) \approx \sqrt{\pi/2z}\,e^{-z}$, "
+        "valid for large |*r*λ|, the ratio simplifies to:"
+    )
+    st.latex(
+        r"\frac{A_2}{A_1}e^{-i\phi} \approx \sqrt{\frac{r_1}{r_2}}\cdot e^{-\lambda(r_2-r_1)}"
+    )
+    st.markdown("Taking the natural logarithm of both sides:")
+    st.latex(
+        r"\ln\!\left(\frac{A_1\sqrt{r_1}}{A_2\sqrt{r_2}}\right) + i\phi = \lambda(r_2 - r_1)"
+    )
+
+    # Step 6
+    st.subheader("6. Separation of Real and Imaginary Components")
+    st.markdown(
+        r"Let Δ*r* = *r₂* − *r₁*. We define λ in terms of its real attenuation component "
+        r"(*m_A*) and imaginary phase component (*m_φ*):"
+    )
+    st.latex(r"\lambda = m_A + i\,m_\varphi")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.latex(r"m_A = \frac{1}{\Delta r}\ln\!\left(\frac{A_1\sqrt{r_1}}{A_2\sqrt{r_2}}\right)")
+    with col2:
+        st.latex(r"m_\varphi = \frac{\phi}{\Delta r}")
+
+    # Step 7
+    st.subheader("7. Squaring the Propagation Constant")
+    st.markdown(
+        "To isolate the diffusivity α from the loss term μ², we square λ:"
+    )
+    st.latex(
+        r"\lambda^2 = (m_A + i\,m_\varphi)^2 = (m_A^2 - m_\varphi^2) + i(2\,m_A m_\varphi)"
+    )
+    st.markdown(r"Recalling that $\lambda^2 = \mu^2 + i\omega/\alpha$ and equating components:")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Imaginary** (diffusivity):")
+        st.latex(r"\frac{\omega}{\alpha} = 2\,m_A m_\varphi")
+    with col2:
+        st.markdown("**Real** (heat loss):")
+        st.latex(r"\mu^2 = m_A^2 - m_\varphi^2")
+
+    st.divider()
+
+    # ── Final Solutions ────────────────────────────────────────────────────────
+    st.header("Final Analytical Solutions")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("A. Combined Diffusivity Solution")
+        st.markdown(
+            "Utilises **both amplitude and phase** information, cancelling the environmental "
+            "heat-loss term:"
+        )
+        st.latex(
+            r"\alpha_{\text{combined}} = \frac{\omega}{2\,m_A m_\varphi} "
+            r"= \frac{\omega\,(\Delta r)^2}{2\,\phi\,\ln\!\left(\dfrac{A_1\sqrt{r_1}}{A_2\sqrt{r_2}}\right)}"
+        )
+        st.success("Recommended — robust against heat losses.")
+
+    with col2:
+        st.subheader("B. Phase-Only Solution")
+        st.markdown(
+            "Valid under **adiabatic conditions** where heat loss is negligible "
+            "(μ² ≈ 0), giving *m_A* = *m_φ*:"
+        )
+        st.latex(
+            r"\alpha_{\text{phase}} = \frac{\omega}{2\,m_\varphi^2} "
+            r"= \frac{\omega\,(\Delta r)^2}{2\,\phi^2}"
+        )
+        st.info("Simpler, but assumes negligible heat loss.")
 
 
 if __name__ == "__main__":
