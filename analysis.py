@@ -176,11 +176,37 @@ def _read_excel_file(content: bytes, filename: str) -> Optional[pd.DataFrame]:
         return None
 
 
+def _detect_encoding_order(content: bytes) -> list:
+    """
+    Return a prioritised list of encodings to try based on BOM detection.
+    UTF-16 files (common from Windows instruments) often have a BOM; we
+    put the matching codec first so we decode correctly on the first try.
+    """
+    if content.startswith(b'\xff\xfe'):          # UTF-16 LE BOM
+        return ['utf-16', 'utf-16-le', 'utf-8-sig', 'utf-8', 'cp1255', 'latin-1']
+    elif content.startswith(b'\xfe\xff'):         # UTF-16 BE BOM
+        return ['utf-16', 'utf-16-be', 'utf-8-sig', 'utf-8', 'cp1255', 'latin-1']
+    elif content.startswith(b'\xef\xbb\xbf'):     # UTF-8 BOM
+        return ['utf-8-sig', 'utf-8', 'utf-16', 'utf-16-le', 'utf-16-be', 'cp1255', 'latin-1']
+    else:                                          # No BOM – try common ones
+        return ['utf-8-sig', 'utf-8', 'utf-16', 'utf-16-le', 'utf-16-be', 'cp1255', 'latin-1']
+
+
 def _read_text_file(content: bytes, filename: str) -> Optional[pd.DataFrame]:
     """Read text file, detecting Keithley or C80 format."""
-    for enc in ['utf-8-sig', 'utf-8', 'utf-16', 'cp1255', 'latin-1']:
+    for enc in _detect_encoding_order(content):
         try:
             text = content.decode(enc, errors='ignore')
+            # Strip BOM character that utf-16-le/be codecs leave in the string.
+            if enc in ('utf-16-le', 'utf-16-be'):
+                text = text.lstrip('\ufeff')
+            # Skip decodings that look like they've interpreted wide-char
+            # (e.g. UTF-16) bytes incorrectly as single-byte encodings.
+            # Such decodes often contain NUL characters in the ASCII range
+            # which lead to garbage lines and failed parsing. If we see
+            # NULs near the start, try the next encoding.
+            if '\x00' in text[:200]:
+                continue
             lines = text.splitlines()
             
             if not lines:
@@ -194,6 +220,16 @@ def _read_text_file(content: bytes, filename: str) -> Optional[pd.DataFrame]:
             elif format_type == 'c80':
                 return _parse_c80(lines)
             else:
+                # If detection failed, still try the C80/Keithley parsers
+                # before falling back to the very generic parser. Some
+                # exports include metadata at the top which can push the
+                # real header past the initial detection window.
+                parsed = _parse_c80(lines)
+                if parsed is not None:
+                    return parsed
+                parsed = _parse_keithley(lines)
+                if parsed is not None:
+                    return parsed
                 # Generic fallback parser
                 return _parse_generic(lines)
                 
@@ -455,10 +491,18 @@ def _extract_start_time_excel(content: bytes) -> Optional[str]:
 
 def _extract_start_time_text(content: bytes) -> Optional[str]:
     """Extract start time from text file header."""
-    for enc in ['utf-8-sig', 'utf-8', 'utf-16', 'cp1255', 'latin-1']:
+    for enc in _detect_encoding_order(content):
         try:
             text = content.decode(enc, errors='ignore')
-            lines = text.splitlines()[:20]  # Check first 20 lines
+            # Strip BOM character that utf-16-le/be codecs leave in the string.
+            if enc in ('utf-16-le', 'utf-16-be'):
+                text = text.lstrip('\ufeff')
+            # If this decode contains NULs early on it is likely the wrong
+            # single-byte interpretation of a wide-char encoding (e.g. UTF-16).
+            # Skip such decodes to prefer the correct encoding.
+            if '\x00' in text[:200]:
+                continue
+            lines = text.splitlines()[:40]  # Check first 40 lines
             
             # First pass: look for specific patterns (more reliable)
             for line in lines:
@@ -506,10 +550,16 @@ def detect_file_type(content: bytes, filename: str) -> str:
         # Excel files are typically C80
         return 'c80'
     
-    for enc in ['utf-8-sig', 'utf-8', 'utf-16', 'cp1255', 'latin-1']:
+    for enc in _detect_encoding_order(content):
         try:
             text = content.decode(enc, errors='ignore')
-            header_text = '\n'.join(text.splitlines()[:15]).lower()
+            # Strip BOM character that utf-16-le/be codecs leave in the string.
+            if enc in ('utf-16-le', 'utf-16-be'):
+                text = text.lstrip('\ufeff')
+            # Prefer decodes without early NULs
+            if '\x00' in text[:200]:
+                continue
+            header_text = '\n'.join(text.splitlines()[:20]).lower()
             
             if '# run' in header_text or 'elapsed(s)' in header_text or 'power(w)' in header_text:
                 return 'keithley'
