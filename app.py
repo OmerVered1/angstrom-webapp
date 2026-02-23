@@ -25,6 +25,13 @@ import database as db
 from ocr_extractor import process_image, ExtractedResults
 
 
+def fmt_alpha(value):
+    """Format thermal diffusivity from m²/s storage units to mm²/s display units (4 sig. figs.)."""
+    if value is None or value == 0:
+        return "N/A"
+    return f"{value * 1e6:.4g}"
+
+
 # Page configuration
 st.set_page_config(
     page_title="Radial Heat Wave Analysis",
@@ -264,11 +271,11 @@ def create_dashboard_figure(t_src, v_src, t_cal, v_cal, results: AnalysisResults
         ["Raw Δt (s)", f"{results.raw_lag_dt:.2f}"],
         ["Raw φ (rad)", f"{results.raw_phase_phi:.4f}"],
         ["ln term", f"{results.ln_term:.4f}"],
-        ["α_comb (raw)", format_scientific(results.alpha_combined_raw)],
-        ["α_phase (raw)", format_scientific(results.alpha_phase_raw)],
+        ["α_comb (raw) (mm²/s)", fmt_alpha(results.alpha_combined_raw)],
+        ["α_phase (raw) (mm²/s)", fmt_alpha(results.alpha_phase_raw)],
         ["Calibration", cal_info],
-        ["α_comb (cal)", format_scientific(results.alpha_combined_cal)],
-        ["α_phase (cal)", format_scientific(results.alpha_phase_cal)],
+        ["α_comb (cal) (mm²/s)", fmt_alpha(results.alpha_combined_cal)],
+        ["α_phase (cal) (mm²/s)", fmt_alpha(results.alpha_phase_cal)],
     ]
     
     fig.add_trace(
@@ -354,12 +361,12 @@ def create_summary_chart_from_db(analysis):
         ["Raw Δt (s)", f"{analysis.get('raw_lag_dt', 0):.2f}"],
         ["Raw φ (rad)", f"{analysis.get('raw_phase_phi', 0):.4f}"],
         ["ln term", f"{analysis.get('ln_term', 0):.4f}"],
-        ["α_comb (raw)", format_scientific(analysis.get('alpha_combined_raw'))],
-        ["α_phase (raw)", format_scientific(analysis.get('alpha_phase_raw'))],
+        ["α_comb (raw) (mm²/s)", fmt_alpha(analysis.get('alpha_combined_raw'))],
+        ["α_phase (raw) (mm²/s)", fmt_alpha(analysis.get('alpha_phase_raw'))],
         ["Calibration", cal_info],
         ["Net Δt (s)", f"{analysis.get('net_lag_dt', 0):.2f}" if use_cal else "N/A"],
-        ["α_comb (cal)", format_scientific(analysis.get('alpha_combined_cal')) if use_cal else "N/A"],
-        ["α_phase (cal)", format_scientific(analysis.get('alpha_phase_cal')) if use_cal else "N/A"],
+        ["α_comb (cal) (mm²/s)", fmt_alpha(analysis.get('alpha_combined_cal')) if use_cal else "N/A"],
+        ["α_phase (cal) (mm²/s)", fmt_alpha(analysis.get('alpha_phase_cal')) if use_cal else "N/A"],
     ]
 
     fig = make_subplots(
@@ -383,21 +390,21 @@ def create_summary_chart_from_db(analysis):
     ), row=1, col=1)
 
     labels = ['a_comb (raw)', 'a_phase (raw)']
-    values = [analysis.get('alpha_combined_raw') or 0, analysis.get('alpha_phase_raw') or 0]
+    values = [(analysis.get('alpha_combined_raw') or 0) * 1e6, (analysis.get('alpha_phase_raw') or 0) * 1e6]
     colors = ['#3498db', '#9b59b6']
     if use_cal:
         labels += ['a_comb (cal)', 'a_phase (cal)']
-        values += [analysis.get('alpha_combined_cal') or 0, analysis.get('alpha_phase_cal') or 0]
+        values += [(analysis.get('alpha_combined_cal') or 0) * 1e6, (analysis.get('alpha_phase_cal') or 0) * 1e6]
         colors += ['#27ae60', '#e67e22']
 
     fig.add_trace(go.Bar(
         x=labels, y=values,
         marker_color=colors,
-        text=[format_scientific(v) for v in values],
+        text=[f"{v:.4g}" for v in values],
         textposition='outside',
     ), row=1, col=2)
 
-    fig.update_yaxes(title_text='alpha (m^2/s)', row=1, col=2)
+    fig.update_yaxes(title_text='α (mm²/s)', row=1, col=2)
     fig.update_layout(
         height=500,
         title_text=f"Analysis Summary - {analysis.get('model_name', 'N/A')} ({analysis.get('test_date', 'N/A')})",
@@ -413,10 +420,10 @@ def results_to_dataframe(results: AnalysisResults, params: AnalysisParams) -> pd
             'Model Name', 'Test Date', 'Inner Radius r₁ (mm)', 'Outer Radius r₂ (mm)',
             'Amplitude A₁ (mW)', 'Amplitude A₂ (mW)', 'Period T (s)', 'Frequency f (Hz)',
             'Angular Frequency ω (rad/s)', 'Raw Time Lag Δt (s)', 'Raw Phase φ (rad)',
-            'Log Term ln(A₁/A₂·√(r₁/r₂))', 'α Combined Method (raw) (m²/s)',
-            'α Phase Method (raw) (m²/s)', 'Calibration Enabled', 'System Lag (s)',
+            'Log Term ln(A₁/A₂·√(r₁/r₂))', 'α Combined Method (raw) (mm²/s)',
+            'α Phase Method (raw) (mm²/s)', 'Calibration Enabled', 'System Lag (s)',
             'Net Time Lag (s)', 'Net Phase (rad)',
-            'α Combined Method (calibrated) (m²/s)', 'α Phase Method (calibrated) (m²/s)'
+            'α Combined Method (calibrated) (mm²/s)', 'α Phase Method (calibrated) (mm²/s)'
         ],
         'Value': [
             params.model_name, params.test_date, params.r1_mm, params.r2_mm,
@@ -424,14 +431,14 @@ def results_to_dataframe(results: AnalysisResults, params: AnalysisParams) -> pd
             f"{results.period_t:.2f}", f"{results.frequency_f:.6f}",
             f"{results.angular_freq_w:.6f}", f"{results.raw_lag_dt:.2f}",
             f"{results.raw_phase_phi:.4f}", f"{results.ln_term:.4f}",
-            format_scientific(results.alpha_combined_raw),
-            format_scientific(results.alpha_phase_raw),
+            fmt_alpha(results.alpha_combined_raw),
+            fmt_alpha(results.alpha_phase_raw),
             'Yes' if params.use_calibration else 'No',
             params.system_lag,
             f"{results.net_lag_dt:.2f}",
             f"{results.net_phase_phi:.4f}",
-            format_scientific(results.alpha_combined_cal),
-            format_scientific(results.alpha_phase_cal)
+            fmt_alpha(results.alpha_combined_cal),
+            fmt_alpha(results.alpha_phase_cal)
         ]
     }
     return pd.DataFrame(data)
@@ -765,23 +772,23 @@ def render_analysis_page():
         with col1:
             st.metric(
                 "α (Combined Method - Raw)",
-                format_scientific(results.alpha_combined_raw) + " m²/s"
+                fmt_alpha(results.alpha_combined_raw) + " mm²/s"
             )
             if params.use_calibration:
                 st.metric(
                     "α (Combined Method - Calibrated)",
-                    format_scientific(results.alpha_combined_cal) + " m²/s"
+                    fmt_alpha(results.alpha_combined_cal) + " mm²/s"
                 )
-        
+
         with col2:
             st.metric(
                 "α (Phase Method - Raw)",
-                format_scientific(results.alpha_phase_raw) + " m²/s"
+                fmt_alpha(results.alpha_phase_raw) + " mm²/s"
             )
             if params.use_calibration:
                 st.metric(
                     "α (Phase Method - Calibrated)",
-                    format_scientific(results.alpha_phase_cal) + " m²/s"
+                    fmt_alpha(results.alpha_phase_cal) + " mm²/s"
                 )
         
         st.divider()
@@ -963,20 +970,20 @@ def render_upload_image_page():
     
     with col4:
         alpha_combined_raw = st.text_input(
-            "α Combined Raw (m²/s)",
-            value=f"{extracted.alpha_combined_raw:.2e}" if extracted.alpha_combined_raw else ""
+            "α Combined Raw (mm²/s)",
+            value=f"{extracted.alpha_combined_raw * 1e6:.4g}" if extracted.alpha_combined_raw else ""
         )
         alpha_phase_raw = st.text_input(
-            "α Phase Raw (m²/s)",
-            value=f"{extracted.alpha_phase_raw:.2e}" if extracted.alpha_phase_raw else ""
+            "α Phase Raw (mm²/s)",
+            value=f"{extracted.alpha_phase_raw * 1e6:.4g}" if extracted.alpha_phase_raw else ""
         )
         alpha_combined_cal = st.text_input(
-            "α Combined Cal (m²/s)",
-            value=f"{extracted.alpha_combined_cal:.2e}" if extracted.alpha_combined_cal else ""
+            "α Combined Cal (mm²/s)",
+            value=f"{extracted.alpha_combined_cal * 1e6:.4g}" if extracted.alpha_combined_cal else ""
         )
         alpha_phase_cal = st.text_input(
-            "α Phase Cal (m²/s)",
-            value=f"{extracted.alpha_phase_cal:.2e}" if extracted.alpha_phase_cal else ""
+            "α Phase Cal (mm²/s)",
+            value=f"{extracted.alpha_phase_cal * 1e6:.4g}" if extracted.alpha_phase_cal else ""
         )
     
     col1, col2, col3 = st.columns(3)
@@ -1036,10 +1043,10 @@ def render_upload_image_page():
                     raw_lag_dt=raw_lag_dt,
                     raw_phase_phi=phi,
                     ln_term=ln_term,
-                    alpha_combined_raw=parse_alpha(alpha_combined_raw),
-                    alpha_combined_cal=parse_alpha(alpha_combined_cal),
-                    alpha_phase_raw=parse_alpha(alpha_phase_raw),
-                    alpha_phase_cal=parse_alpha(alpha_phase_cal),
+                    alpha_combined_raw=parse_alpha(alpha_combined_raw) * 1e-6,
+                    alpha_combined_cal=parse_alpha(alpha_combined_cal) * 1e-6,
+                    alpha_phase_raw=parse_alpha(alpha_phase_raw) * 1e-6,
+                    alpha_phase_cal=parse_alpha(alpha_phase_cal) * 1e-6,
                     net_lag_dt=net_lag_dt,
                     net_phase_phi=0,
                     temperature_c=temperature_c,
@@ -1096,13 +1103,13 @@ def render_results_summary_page():
             'Δt (s)': a['raw_lag_dt'] or 0.0,
             'φ (rad)': a['raw_phase_phi'] or 0.0,
             'ln term': a['ln_term'] or 0.0,
-            'α_comb (raw)': a['alpha_combined_raw'] or 0.0,
-            'α_phase (raw)': a['alpha_phase_raw'] or 0.0,
+            'α_comb (raw) (mm²/s)': (a['alpha_combined_raw'] or 0.0) * 1e6,
+            'α_phase (raw) (mm²/s)': (a['alpha_phase_raw'] or 0.0) * 1e6,
             'Calibrated': bool(a['use_calibration']),
             'Lag (s)': a['system_lag'] or 0.0,
             'Net Δt (s)': (a['net_lag_dt'] or 0.0) if a['use_calibration'] else 0.0,
-            'α_comb (cal)': (a['alpha_combined_cal'] or 0.0) if a['use_calibration'] else 0.0,
-            'α_phase (cal)': (a['alpha_phase_cal'] or 0.0) if a['use_calibration'] else 0.0,
+            'α_comb (cal) (mm²/s)': ((a['alpha_combined_cal'] or 0.0) * 1e6) if a['use_calibration'] else 0.0,
+            'α_phase (cal) (mm²/s)': ((a['alpha_phase_cal'] or 0.0) * 1e6) if a['use_calibration'] else 0.0,
         })
     
     df = pd.DataFrame(summary_data)
@@ -1154,13 +1161,13 @@ def render_results_summary_page():
         'Δt (s)': st.column_config.NumberColumn('Δt (s)', format="%.2f"),
         'φ (rad)': st.column_config.NumberColumn('φ (rad)', format="%.4f"),
         'ln term': st.column_config.NumberColumn('ln term', format="%.4f"),
-        'α_comb (raw)': st.column_config.NumberColumn('α_comb (raw)', format="%.2e"),
-        'α_phase (raw)': st.column_config.NumberColumn('α_phase (raw)', format="%.2e"),
+        'α_comb (raw) (mm²/s)': st.column_config.NumberColumn('α_comb (raw) (mm²/s)', format="%.4g"),
+        'α_phase (raw) (mm²/s)': st.column_config.NumberColumn('α_phase (raw) (mm²/s)', format="%.4g"),
         'Calibrated': st.column_config.CheckboxColumn('Cal'),
         'Lag (s)': st.column_config.NumberColumn('Lag (s)', format="%.1f"),
         'Net Δt (s)': st.column_config.NumberColumn('Net Δt (s)', format="%.2f"),
-        'α_comb (cal)': st.column_config.NumberColumn('α_comb (cal)', format="%.2e"),
-        'α_phase (cal)': st.column_config.NumberColumn('α_phase (cal)', format="%.2e"),
+        'α_comb (cal) (mm²/s)': st.column_config.NumberColumn('α_comb (cal) (mm²/s)', format="%.4g"),
+        'α_phase (cal) (mm²/s)': st.column_config.NumberColumn('α_phase (cal) (mm²/s)', format="%.4g"),
     }
     
     # Editable table
@@ -1202,13 +1209,13 @@ def render_results_summary_page():
                         'raw_lag_dt': row['Δt (s)'],
                         'raw_phase_phi': row['φ (rad)'],
                         'ln_term': row['ln term'],
-                        'alpha_combined_raw': row['α_comb (raw)'],
-                        'alpha_phase_raw': row['α_phase (raw)'],
+                        'alpha_combined_raw': row['α_comb (raw) (mm²/s)'] * 1e-6,
+                        'alpha_phase_raw': row['α_phase (raw) (mm²/s)'] * 1e-6,
                         'use_calibration': row['Calibrated'],
                         'system_lag': row['Lag (s)'],
                         'net_lag_dt': row['Net Δt (s)'],
-                        'alpha_combined_cal': row['α_comb (cal)'],
-                        'alpha_phase_cal': row['α_phase (cal)'],
+                        'alpha_combined_cal': row['α_comb (cal) (mm²/s)'] * 1e-6,
+                        'alpha_phase_cal': row['α_phase (cal) (mm²/s)'] * 1e-6,
                     }
                     
                     if db.update_analysis(analysis_id, update_data):
@@ -1299,14 +1306,14 @@ def render_results_summary_page():
     with col3:
         if alpha_comb_raw_vals:
             avg_alpha = np.mean(alpha_comb_raw_vals)
-            st.metric("Avg α (raw)", format_scientific(avg_alpha))
+            st.metric("Avg α (raw)", fmt_alpha(avg_alpha) + " mm²/s")
         else:
             st.metric("Avg α (raw)", "-")
-    
+
     with col4:
         if alpha_comb_cal_vals:
             avg_alpha_cal = np.mean(alpha_comb_cal_vals)
-            st.metric("Avg α (cal)", format_scientific(avg_alpha_cal))
+            st.metric("Avg α (cal)", fmt_alpha(avg_alpha_cal) + " mm²/s")
         else:
             st.metric("Avg α (cal)", "-")
 
@@ -1338,17 +1345,17 @@ def render_history_page():
         'analysis_mode': 'Mode',
         'r1_mm': 'r₁ (mm)',
         'r2_mm': 'r₂ (mm)',
-        'alpha_combined_raw': 'α_comb (raw)',
-        'alpha_combined_cal': 'α_comb (cal)',
-        'alpha_phase_raw': 'α_phase (raw)',
-        'alpha_phase_cal': 'α_phase (cal)',
+        'alpha_combined_raw': 'α_comb (raw) (mm²/s)',
+        'alpha_combined_cal': 'α_comb (cal) (mm²/s)',
+        'alpha_phase_raw': 'α_phase (raw) (mm²/s)',
+        'alpha_phase_cal': 'α_phase (cal) (mm²/s)',
         'use_calibration': 'Cal'
     })
-    
-    # Format scientific notation
-    for col in ['α_comb (raw)', 'α_comb (cal)', 'α_phase (raw)', 'α_phase (cal)']:
+
+    # Convert m²/s → mm²/s and format
+    for col in ['α_comb (raw) (mm²/s)', 'α_comb (cal) (mm²/s)', 'α_phase (raw) (mm²/s)', 'α_phase (cal) (mm²/s)']:
         if col in df.columns:
-            df[col] = df[col].apply(lambda x: format_scientific(x) if x and x > 0 else 'N/A')
+            df[col] = df[col].apply(lambda x: f"{x * 1e6:.4g}" if x and x > 0 else 'N/A')
     
     st.dataframe(df, use_container_width=True, hide_index=True)
     
@@ -1403,15 +1410,15 @@ def render_history_page():
                     'Period T': safe_format(analysis.get('period_t'), ".2f", "s"),
                     'Frequency': safe_format(analysis.get('frequency_f'), ".5f", "Hz"),
                     'Raw Δt': safe_format(analysis.get('raw_lag_dt'), ".2f", "s"),
-                    'α Combined (raw)': format_scientific(analysis.get('alpha_combined_raw')),
-                    'α Phase (raw)': format_scientific(analysis.get('alpha_phase_raw')),
+                    'α Combined (raw) (mm²/s)': fmt_alpha(analysis.get('alpha_combined_raw')),
+                    'α Phase (raw) (mm²/s)': fmt_alpha(analysis.get('alpha_phase_raw')),
                 }
                 
                 if analysis.get('use_calibration'):
                     details['System Lag'] = f"{analysis.get('system_lag', 0)}s"
                     details['Net Δt'] = safe_format(analysis.get('net_lag_dt'), ".2f", "s")
-                    details['α Combined (cal)'] = format_scientific(analysis.get('alpha_combined_cal'))
-                    details['α Phase (cal)'] = format_scientific(analysis.get('alpha_phase_cal'))
+                    details['α Combined (cal) (mm²/s)'] = fmt_alpha(analysis.get('alpha_combined_cal'))
+                    details['α Phase (cal) (mm²/s)'] = fmt_alpha(analysis.get('alpha_phase_cal'))
                 
                 for k, v in details.items():
                     st.write(f"**{k}:** {v}")
@@ -1482,11 +1489,11 @@ def render_statistics_page():
             'Raw Δt (s)': a.get('raw_lag_dt') or 0.0,
             'Raw φ (rad)': a.get('raw_phase_phi') or 0.0,
             'ln term': a.get('ln_term') or 0.0,
-            'α_comb_raw': a.get('alpha_combined_raw') or 0.0,
-            'α_phase_raw': a.get('alpha_phase_raw') or 0.0,
+            'α_comb_raw': (a.get('alpha_combined_raw') or 0.0) * 1e6,
+            'α_phase_raw': (a.get('alpha_phase_raw') or 0.0) * 1e6,
             'Net Δt (s)': a.get('net_lag_dt') or 0.0,
-            'α_comb_cal': a.get('alpha_combined_cal') or 0.0,
-            'α_phase_cal': a.get('alpha_phase_cal') or 0.0,
+            'α_comb_cal': (a.get('alpha_combined_cal') or 0.0) * 1e6,
+            'α_phase_cal': (a.get('alpha_phase_cal') or 0.0) * 1e6,
         })
     df_all = pd.DataFrame(rows)
 
@@ -1570,10 +1577,10 @@ def render_statistics_page():
 
     # Metric definitions: label → (df column, y-axis label, filter_nonzero)
     METRICS = {
-        'α Combined (raw)':   ('α_comb_raw',   'α (m²/s)', True),
-        'α Phase (raw)':      ('α_phase_raw',  'α (m²/s)', True),
-        'α Combined (cal)':   ('α_comb_cal',   'α (m²/s)', True),
-        'α Phase (cal)':      ('α_phase_cal',  'α (m²/s)', True),
+        'α Combined (raw)':   ('α_comb_raw',   'α (mm²/s)', True),
+        'α Phase (raw)':      ('α_phase_raw',  'α (mm²/s)', True),
+        'α Combined (cal)':   ('α_comb_cal',   'α (mm²/s)', True),
+        'α Phase (cal)':      ('α_phase_cal',  'α (mm²/s)', True),
         'Raw Time Lag Δt':    ('Raw Δt (s)',   'Δt (s)',   False),
         'Raw Phase φ':        ('Raw φ (rad)',  'φ (rad)',  False),
         'ln term':            ('ln term',      'ln(A₁√r₁/A₂√r₂)', False),
@@ -1884,7 +1891,7 @@ def render_statistics_page():
             except Exception:
                 pass
     fig_avp.update_layout(title="α vs Oscillation Period", xaxis_title="Period T (s)",
-                          yaxis_title="α (m²/s)", height=420, hovermode='closest')
+                          yaxis_title="α (mm²/s)", height=420, hovermode='closest')
     st.plotly_chart(fig_avp, use_container_width=True)
 
     st.divider()
@@ -1973,9 +1980,9 @@ def render_statistics_page():
                 fig_temp.add_trace(go.Scatter(
                     x=sm['T (°C)'], y=sm['α_comb_raw'], mode='markers', name=model,
                     marker=dict(size=10, color=PALETTE[i % len(PALETTE)]),
-                    hovertemplate='T=%{x}°C → α=%{y:.2e}<extra>' + model + '</extra>'))
+                    hovertemplate='T=%{x}°C → α=%{y:.4g} mm²/s<extra>' + model + '</extra>'))
             fig_temp.update_layout(title="α Combined (raw) vs T", xaxis_title="T (°C)",
-                                    yaxis_title="α (m²/s)", height=360)
+                                    yaxis_title="α (mm²/s)", height=360)
             st.plotly_chart(fig_temp, use_container_width=True)
         with col_t2:
             sub_t2 = df[df['α_phase_raw'] > 0]
@@ -1985,9 +1992,9 @@ def render_statistics_page():
                 fig_temp2.add_trace(go.Scatter(
                     x=sm['T (°C)'], y=sm['α_phase_raw'], mode='markers', name=model,
                     marker=dict(size=10, color=PALETTE[i % len(PALETTE)]),
-                    hovertemplate='T=%{x}°C → α=%{y:.2e}<extra>' + model + '</extra>'))
+                    hovertemplate='T=%{x}°C → α=%{y:.4g} mm²/s<extra>' + model + '</extra>'))
             fig_temp2.update_layout(title="α Phase (raw) vs T", xaxis_title="T (°C)",
-                                     yaxis_title="α (m²/s)", height=360)
+                                     yaxis_title="α (mm²/s)", height=360)
             st.plotly_chart(fig_temp2, use_container_width=True)
         st.divider()
 

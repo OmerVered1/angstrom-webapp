@@ -1,6 +1,33 @@
 # Changelog
 
-## [2026-02-23]
+## [2026-02-23] — Unit standardisation: α displayed in mm²/s
+
+### Changes
+
+**All thermal diffusivity (α) values now displayed in mm²/s throughout the app**
+
+Previously all α values were shown in m²/s using scientific notation (e.g. `1.39e-07 m²/s`).
+They are now displayed in mm²/s with 4 significant figures (e.g. `0.139 mm²/s`), which is the conventional unit for thermal diffusivity in materials science and avoids scientific notation for the range of values encountered.
+
+Conversion: values are stored in the database in m²/s (SI) and multiplied by 10⁶ for display only.
+
+Locations updated:
+- Live analysis results — metric cards and results table
+- View Details — parameter list
+- Analysis History — table column headers and values
+- Summary page — editable table (displays mm²/s, converts back to m²/s on save)
+- Statistics page — chart builder y-axis, α vs Period chart, α vs Temperature charts, averages
+- Results export CSV — column headers
+- Upload Results Image form — input labels now show mm²/s; entered values are divided by 10⁶ before storage
+- Summary chart for DB records — bar chart y-axis
+
+**Database fix: Empty (air 50°C) records IDs 43–48**
+
+Alpha values for these records were stored in mm²/s instead of m²/s (inserted incorrectly in the previous session). Corrected by dividing all alpha fields by 10⁶.
+
+---
+
+## [2026-02-23] — Image display fix & missing data
 
 ### Bug Fixes
 
