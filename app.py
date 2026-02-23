@@ -362,9 +362,15 @@ def results_to_dataframe(results: AnalysisResults, params: AnalysisParams) -> pd
 def main():
     init_session_state()
 
-    # Global CSS — larger sidebar nav font + pinned credit positioning
+    # Global CSS — larger sidebar title, larger nav font, pinned credit
     st.markdown("""
     <style>
+    /* Bigger sidebar app title (h2) */
+    [data-testid="stSidebar"] h2 {
+        font-size: 1.7rem !important;
+        font-weight: 700;
+        margin-bottom: 0.1rem;
+    }
     /* Larger font for sidebar radio nav options */
     [data-testid="stSidebar"] .stRadio label p {
         font-size: 1.3rem !important;
@@ -375,26 +381,27 @@ def main():
     [data-testid="stSidebarContent"] {
         padding-bottom: 64px !important;
     }
-    /* Pinned credit — fixed to bottom of sidebar area */
+    /* Pinned credit — two lines, fixed to bottom of sidebar */
     .sidebar-credit {
         position: fixed;
         bottom: 0;
         left: 0;
         width: 21rem;
-        padding: 9px 1.2rem 11px 1.2rem;
-        font-size: 0.7rem;
+        padding: 7px 1.1rem 10px 1.1rem;
+        font-size: 0.69rem;
         color: #888;
         background: var(--secondary-background-color);
         border-top: 1px solid rgba(128,128,128,0.2);
         z-index: 99999;
-        line-height: 1.55;
+        line-height: 1.6;
+        box-sizing: border-box;
     }
     </style>
     """, unsafe_allow_html=True)
 
     # Sidebar navigation
     with st.sidebar:
-        st.markdown("### 🌡️ Radial Heat Wave Analysis")
+        st.markdown("## 🌡️ Radial Heat Wave Analysis")
         st.caption("Dynamic radial system wave based method for thermal diffusivity measurement")
         st.divider()
         st.header("Navigation")
@@ -407,10 +414,11 @@ def main():
         st.divider()
         st.caption(f"Total analyses saved: {db.get_analysis_count()}")
 
-        # Credit pinned to sidebar bottom via fixed CSS
+        # Credit pinned to sidebar bottom — two lines to avoid overflow
         st.markdown("""
         <div class="sidebar-credit">
-            © Created by Omer Vered &nbsp;·&nbsp; Hayun Group, BGU University, Israel
+            © Created by Omer Vered<br>
+            Hayun Group, BGU University, Israel
         </div>
         """, unsafe_allow_html=True)
     
