@@ -1958,9 +1958,9 @@ modern materials and cylindrical geometries.
 """
     )
 
-    with st.expander("📜 The Ångström Method (1861) **[1]**", expanded=True):
-        st.markdown(
-            """
+    st.subheader("The Ångström Method (1861) [1]")
+    st.markdown(
+        """
 The foundational work for periodic thermal analysis was established by **Anders Jonas Ångström**
 in his 1861 paper, *"Neue Methode das Wärmeleitungsvermögen der Körper zu bestimmen"* **[1]**.
 
@@ -1990,48 +1990,48 @@ difference φ = ψ₁ − ψ₂ are the two key observables.
 For a thin rod exchanging heat with the environment through a linear (Newtonian) loss term,
 the one-dimensional temperature field satisfies:
 """
-        )
-        st.latex(
-            r"\frac{\partial T}{\partial t} = \alpha \frac{\partial^2 T}{\partial x^2}"
-            r"- \mu^2(T - T_\infty)"
-        )
-        st.markdown(
-            r"""
+    )
+    st.latex(
+        r"\frac{\partial T}{\partial t} = \alpha \frac{\partial^2 T}{\partial x^2}"
+        r"- \mu^2(T - T_\infty)"
+    )
+    st.markdown(
+        r"""
 where μ² = hP/kS encodes the geometry (h = surface heat-transfer coefficient, P = rod
 perimeter, k = thermal conductivity, S = cross-sectional area). Substituting the steady-state
 harmonic ansatz T − T∞ = θ(x)eⁱωᵗ and solving the resulting ODE yields a travelling wave:
 """
-        )
-        st.latex(
-            r"T(x,t) - T_\infty = A_0\, e^{-m_A x}\cos(\omega t - m_\varphi x)"
-        )
-        st.markdown(
-            r"""
+    )
+    st.latex(
+        r"T(x,t) - T_\infty = A_0\, e^{-m_A x}\cos(\omega t - m_\varphi x)"
+    )
+    st.markdown(
+        r"""
 where m_A is the **amplitude attenuation coefficient** and m_φ the **spatial phase coefficient**.
 
 #### Ångström's Key Derivation
 
 Comparing the wave at x₁ and x₂ (separation Δx = x₂ − x₁):
 """
-        )
-        col1, col2 = st.columns(2)
-        with col1:
-            st.latex(r"m_A = \frac{1}{\Delta x}\ln\!\frac{A_1}{A_2}")
-        with col2:
-            st.latex(r"m_\varphi = \frac{\varphi}{\Delta x}")
-        st.markdown(
-            r"""
+    )
+    col1, col2 = st.columns(2)
+    with col1:
+        st.latex(r"m_A = \frac{1}{\Delta x}\ln\!\frac{A_1}{A_2}")
+    with col2:
+        st.latex(r"m_\varphi = \frac{\varphi}{\Delta x}")
+    st.markdown(
+        r"""
 The complex propagation constant λ = m_A + im_φ satisfies λ² = μ² + iω/α. Equating the
 imaginary parts of both sides:
 """
-        )
-        st.latex(r"\frac{\omega}{\alpha} = 2\,m_A m_\varphi")
-        st.markdown("Substituting the measured quantities gives **Ångström's celebrated formula**:")
-        st.latex(
-            r"\alpha = \frac{\omega\,(\Delta x)^2}{2\,\varphi\,\ln\!\left(\dfrac{A_1}{A_2}\right)}"
-        )
-        st.markdown(
-            r"""
+    )
+    st.latex(r"\frac{\omega}{\alpha} = 2\,m_A m_\varphi")
+    st.markdown("Substituting the measured quantities gives **Ångström's celebrated formula**:")
+    st.latex(
+        r"\alpha = \frac{\omega\,(\Delta x)^2}{2\,\varphi\,\ln\!\left(\dfrac{A_1}{A_2}\right)}"
+    )
+    st.markdown(
+        r"""
 The heat-loss term μ² cancels entirely from this combined expression — it appears only in the
 real part (m_A² − m_φ²), leaving α determined by amplitude and phase alone, with no knowledge
 of absolute heat flux required.
@@ -2049,11 +2049,13 @@ described in the Mathematical Derivation section. Notably, the linear formula ab
 radial formula upon replacing ln(A₁/A₂) with ln(A₁√r₁ / A₂√r₂) — the geometric correction
 accounting for the cylindrical spreading of the wavefront.
 """
-        )
+    )
 
-    with st.expander("🔬 Cowan's Advancements (1961–1963) **[2][3][4]**", expanded=True):
-        st.markdown(
-            """
+    st.divider()
+
+    st.subheader("Cowan's Advancements (1961–1963) [2][3][4]")
+    st.markdown(
+        """
 In the mid-20th century, **R. D. Cowan** systematically extended periodic and pulse heat methods
 to address two central challenges: **high-temperature radiative losses** and **non-rod sample
 geometries** **[2][3]**.
@@ -2064,19 +2066,19 @@ Parker et al. **[4]** introduced the laser flash method in 1961, in which a shor
 the front face of a disc and the rear-face temperature rise is monitored. For an ideal adiabatic
 disc of thickness L the thermal diffusivity follows directly from the half-rise time t½:
 """
-        )
-        st.latex(r"\alpha = \frac{0.1388\, L^2}{t_{1/2}}")
-        st.markdown(
-            r"""
+    )
+    st.latex(r"\alpha = \frac{0.1388\, L^2}{t_{1/2}}")
+    st.markdown(
+        r"""
 Cowan **[2]** recognised that at high temperatures (> 500 °C) radiative cooling from the disc
 surfaces significantly distorts the temperature-rise curve, causing the simple formula above to
 overestimate α. He derived a correction factor ξ based on the dimensionless ratio of the
 temperature at five half-rise times to the peak temperature, T(5t½)/T_max:
 """
-        )
-        st.latex(r"\alpha_\text{corrected} = \frac{0.1388\, L^2}{t_{1/2}\cdot \xi\!\left(\frac{T(5t_{1/2})}{T_\text{max}}\right)}")
-        st.markdown(
-            r"""
+    )
+    st.latex(r"\alpha_\text{corrected} = \frac{0.1388\, L^2}{t_{1/2}\cdot \xi\!\left(\frac{T(5t_{1/2})}{T_\text{max}}\right)}")
+    st.markdown(
+        r"""
 This was the first systematic treatment of how surface emissivity and sample aspect ratio distort
 flash measurements — critical for ceramics, refractory metals, and carbides tested above 1000 °C.
 
@@ -2089,10 +2091,10 @@ ratio** A₁/A₂.
 
 For an adiabatic plate of thickness L, the phase-only formula gives:
 """
-        )
-        st.latex(r"\alpha_\text{phase} = \frac{\omega\, L^2}{\varphi^2}")
-        st.markdown(
-            r"""
+    )
+    st.latex(r"\alpha_\text{phase} = \frac{\omega\, L^2}{\varphi^2}")
+    st.markdown(
+        r"""
 Under non-adiabatic conditions, the amplitude decays rapidly due to surface emission — but
 Cowan showed that φ shifts by only a **second-order correction** in the heat-loss parameter.
 Quantitatively: for materials with emissivity up to ε ≈ 0.9 tested below 2000 °C, the
@@ -2102,35 +2104,35 @@ This result provides the theoretical justification for treating α_phase as the 
 observable in demanding experimental conditions, and directly motivates the phase formula used
 in this application:
 """
-        )
-        st.latex(
-            r"\alpha_\text{phase} = \frac{\omega\,(\Delta r)^2}{2\,\varphi^2}"
-        )
-        st.markdown(
-            r"""
+    )
+    st.latex(
+        r"\alpha_\text{phase} = \frac{\omega\,(\Delta r)^2}{2\,\varphi^2}"
+    )
+    st.markdown(
+        r"""
 #### Bridge to Radial Geometry
 
 Cowan also demonstrated that the wave-based framework generalises beyond linear and plate
 geometries. A periodic heat source on the axis of a cylindrical sample produces a **radially
 propagating thermal wave** governed by the modified Bessel equation of order zero:
 """
-        )
-        st.latex(
-            r"\frac{d^2\theta}{dr^2} + \frac{1}{r}\frac{d\theta}{dr} - \lambda^2\theta = 0"
-            r"\qquad \lambda = \sqrt{\frac{i\omega}{\alpha} + \mu^2}"
-        )
-        st.markdown(
-            r"""
+    )
+    st.latex(
+        r"\frac{d^2\theta}{dr^2} + \frac{1}{r}\frac{d\theta}{dr} - \lambda^2\theta = 0"
+        r"\qquad \lambda = \sqrt{\frac{i\omega}{\alpha} + \mu^2}"
+    )
+    st.markdown(
+        r"""
 The asymptotic expansion K₀(rλ) ≈ √(π/2rλ) · e^(−rλ) for large |rλ| recovers Ångström's
 linear result, with the geometric factor √(r₁/r₂) arising from the cylindrical spreading of
 the wavefront. This factor appears explicitly in the combined diffusivity formula implemented
 in this application:
 """
-        )
-        st.latex(
-            r"\alpha_\text{combined} = \frac{\omega\,(\Delta r)^2}"
-            r"{2\,\varphi\,\ln\!\left(\dfrac{A_1\sqrt{r_1}}{A_2\sqrt{r_2}}\right)}"
-        )
+    )
+    st.latex(
+        r"\alpha_\text{combined} = \frac{\omega\,(\Delta r)^2}"
+        r"{2\,\varphi\,\ln\!\left(\dfrac{A_1\sqrt{r_1}}{A_2\sqrt{r_2}}\right)}"
+    )
 
     # ── Bibliography ──────────────────────────────────────────────────────────
     st.subheader("Bibliography")
