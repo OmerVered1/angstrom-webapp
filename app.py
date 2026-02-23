@@ -743,11 +743,11 @@ def render_analysis_page():
                         raw_phase_phi=results.raw_phase_phi,
                         ln_term=results.ln_term,
                         alpha_combined_raw=results.alpha_combined_raw,
-                        alpha_combined_cal=results.alpha_combined_cal,
+                        alpha_combined_cal=results.alpha_combined_cal if params.use_calibration else 0.0,
                         alpha_phase_raw=results.alpha_phase_raw,
-                        alpha_phase_cal=results.alpha_phase_cal,
-                        net_lag_dt=results.net_lag_dt,
-                        net_phase_phi=results.net_phase_phi,
+                        alpha_phase_cal=results.alpha_phase_cal if params.use_calibration else 0.0,
+                        net_lag_dt=results.net_lag_dt if params.use_calibration else 0.0,
+                        net_phase_phi=results.net_phase_phi if params.use_calibration else 0.0,
                         temperature_c=temperature_c,
                         graph_json=graph_json
                     )
@@ -968,9 +968,9 @@ def render_results_summary_page():
             'α_phase (raw)': a['alpha_phase_raw'] or 0.0,
             'Calibrated': bool(a['use_calibration']),
             'Lag (s)': a['system_lag'] or 0.0,
-            'Net Δt (s)': a['net_lag_dt'] or 0.0,
-            'α_comb (cal)': a['alpha_combined_cal'] or 0.0,
-            'α_phase (cal)': a['alpha_phase_cal'] or 0.0,
+            'Net Δt (s)': (a['net_lag_dt'] or 0.0) if a['use_calibration'] else 0.0,
+            'α_comb (cal)': (a['alpha_combined_cal'] or 0.0) if a['use_calibration'] else 0.0,
+            'α_phase (cal)': (a['alpha_phase_cal'] or 0.0) if a['use_calibration'] else 0.0,
         })
     
     df = pd.DataFrame(summary_data)
