@@ -362,12 +362,11 @@ def results_to_dataframe(results: AnalysisResults, params: AnalysisParams) -> pd
 def main():
     init_session_state()
     
-    # Header
-    st.title("🌡️ Radial Heat Wave Analysis")
-    st.caption("Angstrom Method for Thermal Diffusivity Measurement")
-    
     # Sidebar navigation
     with st.sidebar:
+        st.markdown("### 🌡️ Radial Heat Wave Analysis")
+        st.caption("Dynamic radial system wave based method for thermal diffusivity measurement")
+        st.divider()
         st.header("Navigation")
         page = st.radio(
             "Select Page",
@@ -406,8 +405,8 @@ def render_analysis_page():
     detected_sample = None
     
     with col1:
-        st.subheader("C80 Calorimeter File")
-        c80_file = st.file_uploader("Upload C80 data file", type=['csv', 'txt', 'dat', 'xls', 'xlsx'], key='c80')
+        st.subheader("Power Response Data File")
+        c80_file = st.file_uploader("Upload power response data file", type=['csv', 'txt', 'dat', 'xls', 'xlsx'], key='c80')
         
         # Auto-detect start time from C80 file
         c80_default_time = "12:00:00"
@@ -437,13 +436,13 @@ def render_analysis_page():
         
         c80_time_unit = st.selectbox("Time Unit", ["Seconds", "Minutes", "Hours", "ms"], key='c80_time')
         c80_pwr_unit = st.selectbox("Power Unit", ["mW", "Watts", "uW"], key='c80_pwr')
-        t_cal = st.text_input("C80 Start Time (HH:MM:SS)", c80_default_time)
-    
+        t_cal = st.text_input("Response Start Time (HH:MM:SS)", c80_default_time)
+
     with col2:
-        st.subheader("Keithley Source File")
-        src_file = st.file_uploader("Upload Keithley data file", type=['csv', 'txt', 'dat', 'xls', 'xlsx'], key='src')
-        
-        # Auto-detect start time from Keithley file
+        st.subheader("Power Source Data File")
+        src_file = st.file_uploader("Upload power source data file", type=['csv', 'txt', 'dat', 'xls', 'xlsx'], key='src')
+
+        # Auto-detect start time from source file
         src_default_time = "12:05:00"
         if src_file is not None:
             src_content = src_file.read()
@@ -452,10 +451,10 @@ def render_analysis_page():
             if detected_src_time:
                 src_default_time = detected_src_time
                 st.success(f"✓ Detected start time: {detected_src_time}")
-        
+
         src_time_unit = st.selectbox("Time Unit", ["Seconds", "Minutes", "Hours", "ms"], key='src_time')
         src_pwr_unit = st.selectbox("Power Unit", ["Watts", "mW", "uW"], key='src_pwr')
-        t_src = st.text_input("Keithley Start Time (HH:MM:SS)", src_default_time)
+        t_src = st.text_input("Source Start Time (HH:MM:SS)", src_default_time)
     
     st.divider()
     
@@ -549,7 +548,7 @@ def render_analysis_page():
                     st.session_state['v_cal'] = v_cal
                     st.session_state['step'] = 2
                     
-                    st.success(f"✅ Files loaded! C80: {len(df_cal)} points, Keithley: {len(df_src)} points")
+                    st.success(f"✅ Files loaded! Response: {len(df_cal)} points, Source: {len(df_src)} points")
                     st.rerun()
     
     # Step 2: Range Selection
