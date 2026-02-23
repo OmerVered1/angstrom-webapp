@@ -367,8 +367,9 @@ def main():
     <style>
     /* Bigger sidebar app title (h2) */
     [data-testid="stSidebar"] h2 {
-        font-size: 1.7rem !important;
+        font-size: 2.1rem !important;
         font-weight: 700;
+        line-height: 1.25;
         margin-bottom: 0.1rem;
     }
     /* Larger font for sidebar radio nav options */
@@ -379,19 +380,18 @@ def main():
     }
     /* Give sidebar content breathing room above the pinned credit */
     [data-testid="stSidebarContent"] {
-        padding-bottom: 64px !important;
+        padding-bottom: 72px !important;
     }
-    /* Pinned credit — two lines, fixed to bottom of sidebar */
+    /* Pinned credit — no custom border; st.divider() above it provides the line */
     .sidebar-credit {
         position: fixed;
         bottom: 0;
         left: 0;
         width: 21rem;
-        padding: 7px 1.1rem 10px 1.1rem;
+        padding: 6px 1.1rem 10px 1.1rem;
         font-size: 0.69rem;
         color: #888;
         background: var(--secondary-background-color);
-        border-top: 1px solid rgba(128,128,128,0.2);
         z-index: 99999;
         line-height: 1.6;
         box-sizing: border-box;
@@ -414,7 +414,10 @@ def main():
         st.divider()
         st.caption(f"Total analyses saved: {db.get_analysis_count()}")
 
-        # Credit pinned to sidebar bottom — two lines to avoid overflow
+        # Native divider — same style as all other sidebar dividers
+        st.divider()
+
+        # Credit pinned to sidebar bottom
         st.markdown("""
         <div class="sidebar-credit">
             © Created by Omer Vered<br>
