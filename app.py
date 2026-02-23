@@ -361,7 +361,36 @@ def results_to_dataframe(results: AnalysisResults, params: AnalysisParams) -> pd
 
 def main():
     init_session_state()
-    
+
+    # Inject custom CSS: larger sidebar nav font + pinned credit footer
+    st.markdown("""
+    <style>
+    /* Larger font for sidebar radio nav options */
+    [data-testid="stSidebar"] .stRadio label p {
+        font-size: 1.1rem;
+        font-weight: 500;
+        line-height: 1.6;
+    }
+    /* Pinned credit at the very bottom-left of the sidebar */
+    .sidebar-credit {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 21rem;
+        padding: 8px 14px;
+        font-size: 0.68rem;
+        color: #888;
+        background: var(--background-color);
+        border-top: 1px solid rgba(128,128,128,0.15);
+        line-height: 1.4;
+    }
+    </style>
+    <div class="sidebar-credit">
+        © Created by Omer Vered<br>
+        Hayun Group · BGU University · Israel
+    </div>
+    """, unsafe_allow_html=True)
+
     # Sidebar navigation
     with st.sidebar:
         st.markdown("### 🌡️ Radial Heat Wave Analysis")
@@ -373,7 +402,7 @@ def main():
             ["📊 New Analysis", "📷 Upload Results Image", "📋 Results Summary", "📁 Results History", "📈 Statistics", "📐 Theory & Mathematical Evolution"],
             index=0
         )
-        
+
         st.divider()
         st.caption(f"Total analyses saved: {db.get_analysis_count()}")
     
