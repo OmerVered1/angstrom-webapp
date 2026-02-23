@@ -1043,7 +1043,7 @@ def render_upload_image_page():
                     net_lag_dt=net_lag_dt,
                     net_phase_phi=0,
                     temperature_c=temperature_c,
-                    graph_json=None  # No graph for manually uploaded results
+                    graph_json=base64.b64encode(st.session_state.get('uploaded_image_bytes', b'')).decode('utf-8') if st.session_state.get('uploaded_image_bytes') else None
                 )
                 st.success(f"✅ Saved to database! (ID: {analysis_id})")
                 st.balloons()
@@ -1420,13 +1420,22 @@ def render_history_page():
                 # Show saved graph if available; otherwise generate summary chart from stored params
                 graph_json = analysis.get('graph_json')
                 if graph_json and isinstance(graph_json, str) and len(graph_json) > 10:
-                    try:
-                        saved_fig = json_to_fig(graph_json)
-                        st.plotly_chart(saved_fig, use_container_width=True)
-                    except Exception as e:
-                        st.warning(f"Could not display stored graph: {str(e)}")
-                        summary_fig = create_summary_chart_from_db(analysis)
-                        st.plotly_chart(summary_fig, use_container_width=True)
+                    # Detect base64 JPEG (starts with /9j/) vs Plotly JSON (starts with {)
+                    if graph_json.startswith('/9j/') or graph_json.startswith('iVBOR'):
+                        try:
+                            img_bytes = base64.b64decode(graph_json)
+                            st.image(img_bytes, caption="Original Result Image", use_container_width=True)
+                        except Exception:
+                            summary_fig = create_summary_chart_from_db(analysis)
+                            st.plotly_chart(summary_fig, use_container_width=True)
+                    else:
+                        try:
+                            saved_fig = json_to_fig(graph_json)
+                            st.plotly_chart(saved_fig, use_container_width=True)
+                        except Exception as e:
+                            st.warning(f"Could not display stored graph: {str(e)}")
+                            summary_fig = create_summary_chart_from_db(analysis)
+                            st.plotly_chart(summary_fig, use_container_width=True)
                 else:
                     summary_fig = create_summary_chart_from_db(analysis)
                     st.plotly_chart(summary_fig, use_container_width=True)
