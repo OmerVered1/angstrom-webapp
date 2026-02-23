@@ -326,6 +326,86 @@ def json_to_fig(json_str):
     return pio.from_json(json_str)
 
 
+def parse_test_date(date_str):
+    """Parse DD/MM/YYYY string to datetime for sorting. Returns datetime.min on failure."""
+    from datetime import datetime
+    try:
+        return datetime.strptime(date_str, "%d/%m/%Y")
+    except Exception:
+        return datetime.min
+
+
+def create_summary_chart_from_db(analysis):
+    """Create a summary chart for a DB record that has no stored graph (uploaded from image)."""
+    use_cal = analysis.get('use_calibration', False)
+    lag = analysis.get('system_lag') or 0
+    cal_info = f"Lag: {lag:.1f}s" if use_cal else "Disabled"
+
+    table_rows = [
+        ["Model", analysis.get('model_name', 'N/A')],
+        ["Test Date", analysis.get('test_date', 'N/A')],
+        ["r₁ (mm)", f"{analysis.get('r1_mm', 0):.2f}"],
+        ["r₂ (mm)", f"{analysis.get('r2_mm', 0):.2f}"],
+        ["A₁ (mW)", f"{analysis.get('amplitude_a1', 0):.3f}"],
+        ["A₂ (mW)", f"{analysis.get('amplitude_a2', 0):.3f}"],
+        ["Period T (s)", f"{analysis.get('period_t', 0):.2f}"],
+        ["Frequency (Hz)", f"{analysis.get('frequency_f', 0):.5f}"],
+        ["ω (rad/s)", f"{analysis.get('angular_freq_w', 0):.5f}"],
+        ["Raw Δt (s)", f"{analysis.get('raw_lag_dt', 0):.2f}"],
+        ["Raw φ (rad)", f"{analysis.get('raw_phase_phi', 0):.4f}"],
+        ["ln term", f"{analysis.get('ln_term', 0):.4f}"],
+        ["α_comb (raw)", format_scientific(analysis.get('alpha_combined_raw'))],
+        ["α_phase (raw)", format_scientific(analysis.get('alpha_phase_raw'))],
+        ["Calibration", cal_info],
+        ["Net Δt (s)", f"{analysis.get('net_lag_dt', 0):.2f}" if use_cal else "N/A"],
+        ["α_comb (cal)", format_scientific(analysis.get('alpha_combined_cal')) if use_cal else "N/A"],
+        ["α_phase (cal)", format_scientific(analysis.get('alpha_phase_cal')) if use_cal else "N/A"],
+    ]
+
+    fig = make_subplots(
+        rows=1, cols=2,
+        specs=[[{"type": "table"}, {"type": "bar"}]],
+        subplot_titles=("Results Summary", "Thermal Diffusivity \u03b1"),
+        horizontal_spacing=0.08
+    )
+
+    fig.add_trace(go.Table(
+        header=dict(
+            values=['<b>Parameter</b>', '<b>Value</b>'],
+            font=dict(size=11), align='left',
+            fill_color='#2c3e50', font_color='white'
+        ),
+        cells=dict(
+            values=[[r[0] for r in table_rows], [r[1] for r in table_rows]],
+            font=dict(size=10), align='left',
+            fill_color=[['#f8f9fa', '#ffffff'] * 9]
+        )
+    ), row=1, col=1)
+
+    labels = ['a_comb (raw)', 'a_phase (raw)']
+    values = [analysis.get('alpha_combined_raw') or 0, analysis.get('alpha_phase_raw') or 0]
+    colors = ['#3498db', '#9b59b6']
+    if use_cal:
+        labels += ['a_comb (cal)', 'a_phase (cal)']
+        values += [analysis.get('alpha_combined_cal') or 0, analysis.get('alpha_phase_cal') or 0]
+        colors += ['#27ae60', '#e67e22']
+
+    fig.add_trace(go.Bar(
+        x=labels, y=values,
+        marker_color=colors,
+        text=[format_scientific(v) for v in values],
+        textposition='outside',
+    ), row=1, col=2)
+
+    fig.update_yaxes(title_text='alpha (m^2/s)', row=1, col=2)
+    fig.update_layout(
+        height=500,
+        title_text=f"Analysis Summary - {analysis.get('model_name', 'N/A')} ({analysis.get('test_date', 'N/A')})",
+        showlegend=False
+    )
+    return fig
+
+
 def results_to_dataframe(results: AnalysisResults, params: AnalysisParams) -> pd.DataFrame:
     """Convert results to a DataFrame for display/export."""
     data = {
@@ -982,12 +1062,15 @@ def render_results_summary_page():
     st.caption("Comprehensive overview of all saved analysis results")
     
     analyses = db.get_all_analyses()
-    
+
     if not analyses:
         st.info("No analyses saved yet. Run an analysis or upload results to see them here.")
         return
-    
-    # Fetch full data for all analyses
+
+    # Sort by test_date descending (most recent experiment first)
+    analyses = sorted(analyses, key=lambda a: parse_test_date(a.get('test_date', '')), reverse=True)
+
+    # Fetch full data for all analyses (preserving sorted order)
     full_analyses = []
     for a in analyses:
         full_data = db.get_analysis_by_id(a['id'])
@@ -1023,7 +1106,11 @@ def render_results_summary_page():
         })
     
     df = pd.DataFrame(summary_data)
-    
+
+    # Add a hidden sort key column so Streamlit can sort Date correctly
+    df['_date_sort'] = df['Date'].apply(parse_test_date)
+    df = df.sort_values('_date_sort', ascending=False).drop(columns=['_date_sort']).reset_index(drop=True)
+
     # Display options
     st.subheader("📊 Editable Summary Table")
     st.info("💡 Edit any cell directly in the table below, then click 'Save Changes' to update the database.")
@@ -1227,12 +1314,15 @@ def render_results_summary_page():
 def render_history_page():
     """Render the results history page."""
     st.header("📁 Analysis History")
-    
+
     analyses = db.get_all_analyses()
-    
+
     if not analyses:
         st.info("No analyses saved yet. Run an analysis and save it to see it here.")
         return
+
+    # Sort by test_date descending (most recent experiment first)
+    analyses = sorted(analyses, key=lambda a: parse_test_date(a.get('test_date', '')), reverse=True)
     
     # Summary table
     st.subheader(f"📊 All Analyses ({len(analyses)} total)")
@@ -1327,16 +1417,19 @@ def render_history_page():
                     st.write(f"**{k}:** {v}")
             
             with col2:
-                # Show saved graph if available (now stored as JSON)
+                # Show saved graph if available; otherwise generate summary chart from stored params
                 graph_json = analysis.get('graph_json')
                 if graph_json and isinstance(graph_json, str) and len(graph_json) > 10:
                     try:
                         saved_fig = json_to_fig(graph_json)
                         st.plotly_chart(saved_fig, use_container_width=True)
                     except Exception as e:
-                        st.warning(f"Could not display graph: {str(e)}")
+                        st.warning(f"Could not display stored graph: {str(e)}")
+                        summary_fig = create_summary_chart_from_db(analysis)
+                        st.plotly_chart(summary_fig, use_container_width=True)
                 else:
-                    st.info("No graph saved for this analysis (uploaded from image)")
+                    summary_fig = create_summary_chart_from_db(analysis)
+                    st.plotly_chart(summary_fig, use_container_width=True)
                 
                 # Delete button
                 if st.button("🗑️ Delete this analysis", type="secondary"):
