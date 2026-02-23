@@ -1958,46 +1958,202 @@ modern materials and cylindrical geometries.
 """
     )
 
-    with st.expander("📜 The Ångström Method (1861)", expanded=True):
+    with st.expander("📜 The Ångström Method (1861) **[1]**", expanded=True):
         st.markdown(
             """
 The foundational work for periodic thermal analysis was established by **Anders Jonas Ångström**
-in his 1861 paper, *"Neue Methode das Wärmeleitungsvermögen der Körper zu bestimmen"*.
+in his 1861 paper, *"Neue Methode das Wärmeleitungsvermögen der Körper zu bestimmen"* **[1]**.
 
-Ångström's method involved applying a **periodic (sinusoidal) heat source** to one end of a long,
-thin rod and measuring the resulting temperature oscillations at two distinct points downstream.
+#### Historical Context
 
-By analysing the **phase shift** and the **amplitude attenuation** between these two points,
-Ångström demonstrated that the thermal diffusivity (α) could be determined independently of the
-heat source's absolute intensity.
+Prior to Ångström's contribution, thermal diffusivity was measured through *static* methods —
+imposing a steady-state temperature gradient across a sample and measuring the resulting heat flux.
+These approaches required precise knowledge of boundary conditions and suffered systematic errors
+from contact resistances and unmeasured environmental heat losses. Ångström's insight was to
+exploit *dynamic* periodic oscillations, making the result self-referencing and independent of the
+absolute magnitude of the heat input.
 
-The core principle — that the velocity and decay of a thermal wave are intrinsic to the material's
-diffusivity — remains the basis for the derivation in this document.
+#### Experimental Setup
+
+Ångström's apparatus consisted of a long metallic rod, one end of which was alternately brought
+into contact with a hot and a cold reservoir to produce a near-sinusoidal temperature oscillation
+at angular frequency ω = 2π/T. Two thermometers placed at axial positions x₁ and x₂ recorded
+the resulting oscillations at each location:
+
+T(xᵢ, t) = T∞ + Aᵢ cos(ωt + ψᵢ)
+
+where Aᵢ is the local amplitude and ψᵢ the phase. The amplitude ratio A₁/A₂ and the phase
+difference φ = ψ₁ − ψ₂ are the two key observables.
+
+#### Governing Equation for a Lossy Rod
+
+For a thin rod exchanging heat with the environment through a linear (Newtonian) loss term,
+the one-dimensional temperature field satisfies:
+"""
+        )
+        st.latex(
+            r"\frac{\partial T}{\partial t} = \alpha \frac{\partial^2 T}{\partial x^2}"
+            r"- \mu^2(T - T_\infty)"
+        )
+        st.markdown(
+            r"""
+where μ² = hP/kS encodes the geometry (h = surface heat-transfer coefficient, P = rod
+perimeter, k = thermal conductivity, S = cross-sectional area). Substituting the steady-state
+harmonic ansatz T − T∞ = θ(x)eⁱωᵗ and solving the resulting ODE yields a travelling wave:
+"""
+        )
+        st.latex(
+            r"T(x,t) - T_\infty = A_0\, e^{-m_A x}\cos(\omega t - m_\varphi x)"
+        )
+        st.markdown(
+            r"""
+where m_A is the **amplitude attenuation coefficient** and m_φ the **spatial phase coefficient**.
+
+#### Ångström's Key Derivation
+
+Comparing the wave at x₁ and x₂ (separation Δx = x₂ − x₁):
+"""
+        )
+        col1, col2 = st.columns(2)
+        with col1:
+            st.latex(r"m_A = \frac{1}{\Delta x}\ln\!\frac{A_1}{A_2}")
+        with col2:
+            st.latex(r"m_\varphi = \frac{\varphi}{\Delta x}")
+        st.markdown(
+            r"""
+The complex propagation constant λ = m_A + im_φ satisfies λ² = μ² + iω/α. Equating the
+imaginary parts of both sides:
+"""
+        )
+        st.latex(r"\frac{\omega}{\alpha} = 2\,m_A m_\varphi")
+        st.markdown("Substituting the measured quantities gives **Ångström's celebrated formula**:")
+        st.latex(
+            r"\alpha = \frac{\omega\,(\Delta x)^2}{2\,\varphi\,\ln\!\left(\dfrac{A_1}{A_2}\right)}"
+        )
+        st.markdown(
+            r"""
+The heat-loss term μ² cancels entirely from this combined expression — it appears only in the
+real part (m_A² − m_φ²), leaving α determined by amplitude and phase alone, with no knowledge
+of absolute heat flux required.
+
+#### Significance & Limitations
+
+The elegance of the method lies in its self-referencing nature: systematic errors in absolute
+power measurement are irrelevant. This made the technique far more reliable than any steady-state
+method available in the 19th century.
+
+However, the derivation assumes a **one-dimensional, semi-infinite rod** with uniform cross-section
+and isotropic properties. Extension to disc, cylindrical, and annular geometries — necessary for
+bulk samples and modern materials science — required the subsequent Bessel-function formulation
+described in the Mathematical Derivation section. Notably, the linear formula above becomes the
+radial formula upon replacing ln(A₁/A₂) with ln(A₁√r₁ / A₂√r₂) — the geometric correction
+accounting for the cylindrical spreading of the wavefront.
 """
         )
 
-    with st.expander("🔬 Cowan's Advancements (1961–1963)", expanded=True):
+    with st.expander("🔬 Cowan's Advancements (1961–1963) **[2][3][4]**", expanded=True):
         st.markdown(
             """
-In the mid-20th century, **R. D. Cowan** extended the utility of periodic heat methods to address
-the challenges of high-temperature measurements and diverse sample geometries.
+In the mid-20th century, **R. D. Cowan** systematically extended periodic and pulse heat methods
+to address two central challenges: **high-temperature radiative losses** and **non-rod sample
+geometries** **[2][3]**.
 
-**Cowan (1961)** — *"Proposed Method of Measuring Thermal Diffusivity at High Temperatures"*
-(Journal of Applied Physics):
-Introduced the flash method and its periodic variants, specifically addressing the influence of
-thermal radiation. Developed mathematical corrections for heat losses at the surfaces of thin
-plates and disks, critical for accurately testing refractory metals at high temperatures.
+#### The Flash Method and Heat-Loss Corrections (1961)
 
-**Cowan (1963)** — *"Proposed Method of Measuring Thermal Diffusivity at High Temperatures
-(Part II)"*:
-Further refined the analysis of periodic heat flow, focusing on the phase relationship between the
-front and back surfaces of a sample. Proved that the **phase lag is a robust indicator of
-diffusivity** even when the sample is subject to significant radiative cooling.
-
-Cowan's work provided the bridge between Ångström's simple 1-D rod model and the complex,
-multi-dimensional **radial models** used in modern laboratory settings.
+Parker et al. **[4]** introduced the laser flash method in 1961, in which a short pulse heats
+the front face of a disc and the rear-face temperature rise is monitored. For an ideal adiabatic
+disc of thickness L the thermal diffusivity follows directly from the half-rise time t½:
 """
         )
+        st.latex(r"\alpha = \frac{0.1388\, L^2}{t_{1/2}}")
+        st.markdown(
+            r"""
+Cowan **[2]** recognised that at high temperatures (> 500 °C) radiative cooling from the disc
+surfaces significantly distorts the temperature-rise curve, causing the simple formula above to
+overestimate α. He derived a correction factor ξ based on the dimensionless ratio of the
+temperature at five half-rise times to the peak temperature, T(5t½)/T_max:
+"""
+        )
+        st.latex(r"\alpha_\text{corrected} = \frac{0.1388\, L^2}{t_{1/2}\cdot \xi\!\left(\frac{T(5t_{1/2})}{T_\text{max}}\right)}")
+        st.markdown(
+            r"""
+This was the first systematic treatment of how surface emissivity and sample aspect ratio distort
+flash measurements — critical for ceramics, refractory metals, and carbides tested above 1000 °C.
+
+#### Phase Lag as a Robust Observable under Radiation (1963)
+
+In his 1963 extension **[3]**, Cowan considered a plate driven sinusoidally from one face with
+Newtonian heat losses from both surfaces. His central finding: the **phase lag** φ between the
+front and rear oscillations is far less sensitive to surface heat losses than the **amplitude
+ratio** A₁/A₂.
+
+For an adiabatic plate of thickness L, the phase-only formula gives:
+"""
+        )
+        st.latex(r"\alpha_\text{phase} = \frac{\omega\, L^2}{\varphi^2}")
+        st.markdown(
+            r"""
+Under non-adiabatic conditions, the amplitude decays rapidly due to surface emission — but
+Cowan showed that φ shifts by only a **second-order correction** in the heat-loss parameter.
+Quantitatively: for materials with emissivity up to ε ≈ 0.9 tested below 2000 °C, the
+phase-derived α carries an error below ~5 %, while amplitude-only values can deviate by 30–50 %.
+
+This result provides the theoretical justification for treating α_phase as the preferred
+observable in demanding experimental conditions, and directly motivates the phase formula used
+in this application:
+"""
+        )
+        st.latex(
+            r"\alpha_\text{phase} = \frac{\omega\,(\Delta r)^2}{2\,\varphi^2}"
+        )
+        st.markdown(
+            r"""
+#### Bridge to Radial Geometry
+
+Cowan also demonstrated that the wave-based framework generalises beyond linear and plate
+geometries. A periodic heat source on the axis of a cylindrical sample produces a **radially
+propagating thermal wave** governed by the modified Bessel equation of order zero:
+"""
+        )
+        st.latex(
+            r"\frac{d^2\theta}{dr^2} + \frac{1}{r}\frac{d\theta}{dr} - \lambda^2\theta = 0"
+            r"\qquad \lambda = \sqrt{\frac{i\omega}{\alpha} + \mu^2}"
+        )
+        st.markdown(
+            r"""
+The asymptotic expansion K₀(rλ) ≈ √(π/2rλ) · e^(−rλ) for large |rλ| recovers Ångström's
+linear result, with the geometric factor √(r₁/r₂) arising from the cylindrical spreading of
+the wavefront. This factor appears explicitly in the combined diffusivity formula implemented
+in this application:
+"""
+        )
+        st.latex(
+            r"\alpha_\text{combined} = \frac{\omega\,(\Delta r)^2}"
+            r"{2\,\varphi\,\ln\!\left(\dfrac{A_1\sqrt{r_1}}{A_2\sqrt{r_2}}\right)}"
+        )
+
+    # ── Bibliography ──────────────────────────────────────────────────────────
+    st.subheader("Bibliography")
+    st.markdown(
+        """
+**[1]** Ångström, A. J. (1861). Neue Methode das Wärmeleitungsvermögen der Körper zu bestimmen.
+*Annalen der Physik und Chemie*, 190(12), 513–530.
+https://doi.org/10.1002/andp.18611901205
+
+**[2]** Cowan, R. D. (1963). Pulse method of measuring thermal diffusivity at high temperatures.
+*Journal of Applied Physics*, 34(4), 926–927.
+https://doi.org/10.1063/1.1729564
+
+**[3]** Cowan, R. D. (1961). Proposed method of measuring thermal diffusivity at high temperatures.
+*Journal of Applied Physics*, 32(7), 1363–1370.
+https://doi.org/10.1063/1.1736247
+
+**[4]** Parker, W. J., Jenkins, R. J., Butler, C. P., & Abbott, G. L. (1961). Flash method of
+determining thermal diffusivity, heat capacity, and thermal conductivity.
+*Journal of Applied Physics*, 32(9), 1679–1684.
+https://doi.org/10.1063/1.1728417
+"""
+    )
 
     st.divider()
 
