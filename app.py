@@ -371,7 +371,7 @@ def main():
         st.header("Navigation")
         page = st.radio(
             "Select Page",
-            ["📊 New Analysis", "📷 Upload Results Image", "📋 Results Summary", "📁 Results History", "📐 Theory & Mathematical Evolution"],
+            ["📊 New Analysis", "📷 Upload Results Image", "📋 Results Summary", "📁 Results History", "📈 Statistics", "📐 Theory & Mathematical Evolution"],
             index=0
         )
         
@@ -386,6 +386,8 @@ def main():
         render_results_summary_page()
     elif page == "📁 Results History":
         render_history_page()
+    elif page == "📈 Statistics":
+        render_statistics_page()
     else:
         render_theory_page()
 
@@ -1296,6 +1298,419 @@ def render_history_page():
                         st.rerun()
                     else:
                         st.error("Failed to delete.")
+
+
+def render_statistics_page():
+    """Render the Statistics page with box plots and other visualizations."""
+    import plotly.express as px
+
+    st.title("📈 Statistics")
+    st.caption("Explore distributions, trends, and correlations across all saved analyses")
+
+    # ── Load data ──────────────────────────────────────────────────────────────
+    analyses = db.get_all_analyses()
+    if not analyses:
+        st.info("No analyses saved yet. Run some analyses first to see statistics.")
+        return
+
+    # Build a full DataFrame
+    rows = []
+    for a in analyses:
+        period = a.get('period_t') or 0.0
+        freq = a.get('frequency_f') or (1.0 / period if period > 0 else 0.0)
+        rows.append({
+            'id': a['id'],
+            'Model': a.get('model_name') or 'Unknown',
+            'Date': a.get('test_date') or '',
+            'T (°C)': a.get('temperature_c') or 25.0,
+            'Calibrated': bool(a.get('use_calibration')),
+            'System Lag (s)': a.get('system_lag') or 0.0,
+            'r₁ (mm)': a.get('r1_mm') or 0.0,
+            'r₂ (mm)': a.get('r2_mm') or 0.0,
+            'A₁ (mW)': a.get('amplitude_a1') or 0.0,
+            'A₂ (mW)': a.get('amplitude_a2') or 0.0,
+            'Period (s)': period,
+            'Frequency (Hz)': freq,
+            'Raw Δt (s)': a.get('raw_lag_dt') or 0.0,
+            'Raw φ (rad)': a.get('raw_phase_phi') or 0.0,
+            'ln term': a.get('ln_term') or 0.0,
+            'α_comb_raw': a.get('alpha_combined_raw') or 0.0,
+            'α_phase_raw': a.get('alpha_phase_raw') or 0.0,
+            'Net Δt (s)': a.get('net_lag_dt') or 0.0,
+            'α_comb_cal': a.get('alpha_combined_cal') or 0.0,
+            'α_phase_cal': a.get('alpha_phase_cal') or 0.0,
+        })
+    df_all = pd.DataFrame(rows)
+
+    # Derived columns
+    df_all['Amplitude Ratio A₁/A₂'] = df_all.apply(
+        lambda r: r['A₁ (mW)'] / r['A₂ (mW)'] if r['A₂ (mW)'] > 0 else np.nan, axis=1)
+    df_all['Δr (mm)'] = df_all['r₂ (mm)'] - df_all['r₁ (mm)']
+
+    # Period band labels
+    def period_band(p):
+        if p <= 0:
+            return 'Unknown'
+        elif p < 200:
+            return '< 200 s'
+        elif p < 400:
+            return '200–400 s'
+        elif p < 700:
+            return '400–700 s'
+        elif p < 1200:
+            return '700–1200 s'
+        else:
+            return '> 1200 s'
+
+    df_all['Period Band'] = df_all['Period (s)'].apply(period_band)
+    band_order = ['< 200 s', '200–400 s', '400–700 s', '700–1200 s', '> 1200 s']
+
+    # ── Sidebar filters ────────────────────────────────────────────────────────
+    with st.sidebar:
+        st.divider()
+        st.subheader("Statistics Filters")
+        all_models = sorted(df_all['Model'].unique().tolist())
+        sel_models = st.multiselect("Models", all_models, default=all_models, key='stats_models')
+        cal_choice = st.radio("Calibration", ["All", "Calibrated", "Uncalibrated"], key='stats_cal')
+
+    df = df_all[df_all['Model'].isin(sel_models)].copy()
+    if cal_choice == "Calibrated":
+        df = df[df['Calibrated']]
+    elif cal_choice == "Uncalibrated":
+        df = df[~df['Calibrated']]
+
+    if df.empty:
+        st.warning("No data matches the current filters.")
+        return
+
+    st.caption(f"Showing **{len(df)}** of {len(df_all)} analyses")
+
+    # ── Section 1: Alpha Box Plots ─────────────────────────────────────────────
+    st.header("1. Thermal Diffusivity Distributions")
+
+    col_ctrl1, col_ctrl2 = st.columns(2)
+    with col_ctrl1:
+        alpha_metric = st.selectbox(
+            "Alpha metric",
+            ["α_comb_raw", "α_phase_raw", "α_comb_cal", "α_phase_cal"],
+            format_func=lambda x: {
+                "α_comb_raw": "α Combined (raw)",
+                "α_phase_raw": "α Phase (raw)",
+                "α_comb_cal": "α Combined (calibrated)",
+                "α_phase_cal": "α Phase (calibrated)",
+            }[x],
+            key='stats_alpha_metric'
+        )
+    with col_ctrl2:
+        group_by = st.selectbox(
+            "Group by",
+            ["Model", "Period Band"],
+            key='stats_group_by'
+        )
+
+    df_plot = df[df[alpha_metric] > 0].copy()
+
+    if df_plot.empty:
+        st.info("No valid (> 0) alpha values for this metric.")
+    else:
+        cat_order = sorted(df_plot[group_by].unique().tolist()) if group_by == 'Model' else band_order
+        cat_order = [c for c in cat_order if c in df_plot[group_by].values]
+
+        col_box, col_violin = st.columns(2)
+
+        with col_box:
+            fig_box = go.Figure()
+            for cat in cat_order:
+                vals = df_plot[df_plot[group_by] == cat][alpha_metric].tolist()
+                fig_box.add_trace(go.Box(
+                    y=vals,
+                    name=cat,
+                    boxpoints='all',
+                    jitter=0.4,
+                    pointpos=0,
+                    marker_size=6,
+                ))
+            fig_box.update_layout(
+                title=f"Box Plot — {alpha_metric} by {group_by}",
+                yaxis_title="α (m²/s)",
+                height=420,
+                showlegend=False,
+            )
+            st.plotly_chart(fig_box, use_container_width=True)
+
+        with col_violin:
+            fig_vio = go.Figure()
+            for cat in cat_order:
+                vals = df_plot[df_plot[group_by] == cat][alpha_metric].tolist()
+                fig_vio.add_trace(go.Violin(
+                    y=vals,
+                    name=cat,
+                    box_visible=True,
+                    meanline_visible=True,
+                    points='all',
+                ))
+            fig_vio.update_layout(
+                title=f"Violin Plot — {alpha_metric} by {group_by}",
+                yaxis_title="α (m²/s)",
+                height=420,
+                showlegend=False,
+            )
+            st.plotly_chart(fig_vio, use_container_width=True)
+
+    st.divider()
+
+    # ── Section 2: Alpha vs Period (scatter + trend) ───────────────────────────
+    st.header("2. Thermal Diffusivity vs Period")
+    st.caption("Ideal behavior: α should be roughly constant regardless of period")
+
+    alpha_cols = {
+        'α Combined (raw)': 'α_comb_raw',
+        'α Phase (raw)': 'α_phase_raw',
+    }
+    if df['Calibrated'].any():
+        alpha_cols['α Combined (cal)'] = 'α_comb_cal'
+        alpha_cols['α Phase (cal)'] = 'α_phase_cal'
+
+    sel_alphas = st.multiselect(
+        "Alpha series to plot",
+        list(alpha_cols.keys()),
+        default=list(alpha_cols.keys())[:2],
+        key='stats_alpha_series'
+    )
+
+    fig_scatter = go.Figure()
+    colors_series = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12']
+
+    for i, label in enumerate(sel_alphas):
+        col_key = alpha_cols[label]
+        sub = df[df[col_key] > 0][['Period (s)', col_key, 'Model']].dropna()
+        if sub.empty:
+            continue
+        color = colors_series[i % len(colors_series)]
+        fig_scatter.add_trace(go.Scatter(
+            x=sub['Period (s)'],
+            y=sub[col_key],
+            mode='markers',
+            name=label,
+            text=sub['Model'],
+            hovertemplate='%{text}<br>T=%{x:.1f}s<br>α=%{y:.2e}<extra>' + label + '</extra>',
+            marker=dict(size=9, color=color, opacity=0.8),
+        ))
+        # Trend line (log-linear)
+        if len(sub) >= 3:
+            log_x = np.log(sub['Period (s)'].clip(lower=1))
+            coeffs = np.polyfit(log_x, sub[col_key], 1)
+            x_range = np.linspace(sub['Period (s)'].min(), sub['Period (s)'].max(), 100)
+            y_trend = np.polyval(coeffs, np.log(x_range.clip(min=1)))
+            fig_scatter.add_trace(go.Scatter(
+                x=x_range, y=y_trend,
+                mode='lines',
+                name=f'{label} trend',
+                line=dict(color=color, dash='dash', width=1),
+                showlegend=True,
+            ))
+
+    fig_scatter.update_layout(
+        title="α vs Oscillation Period",
+        xaxis_title="Period T (s)",
+        yaxis_title="α (m²/s)",
+        height=450,
+        hovermode='closest',
+    )
+    st.plotly_chart(fig_scatter, use_container_width=True)
+
+    st.divider()
+
+    # ── Section 3: Amplitude & Heat-Loss Indicators ────────────────────────────
+    st.header("3. Amplitude Attenuation & Heat-Loss Indicators")
+    st.caption(
+        "A large amplitude ratio A₁/A₂ or a large ln-term indicates strong heat loss. "
+        "When α_phase >> α_combined, heat losses are significant."
+    )
+
+    col_a, col_b, col_c = st.columns(3)
+
+    with col_a:
+        sub_ln = df[df['ln term'] != 0][['Model', 'ln term', 'Period Band']]
+        fig_ln = go.Figure()
+        for cat in sorted(sub_ln['Model'].unique()):
+            vals = sub_ln[sub_ln['Model'] == cat]['ln term'].tolist()
+            fig_ln.add_trace(go.Box(y=vals, name=cat, boxpoints='all', jitter=0.4, pointpos=0))
+        fig_ln.update_layout(title="ln(A₁√r₁ / A₂√r₂) by Model", yaxis_title="ln term", height=350, showlegend=False)
+        st.plotly_chart(fig_ln, use_container_width=True)
+
+    with col_b:
+        sub_ratio = df[df['Amplitude Ratio A₁/A₂'].notna() & (df['Amplitude Ratio A₁/A₂'] > 0)]
+        fig_ratio = go.Figure()
+        for cat in sorted(sub_ratio['Model'].unique()):
+            vals = sub_ratio[sub_ratio['Model'] == cat]['Amplitude Ratio A₁/A₂'].tolist()
+            fig_ratio.add_trace(go.Box(y=vals, name=cat, boxpoints='all', jitter=0.4, pointpos=0))
+        fig_ratio.update_layout(title="Amplitude Ratio A₁/A₂ by Model", yaxis_title="A₁/A₂", height=350, showlegend=False)
+        st.plotly_chart(fig_ratio, use_container_width=True)
+
+    with col_c:
+        # Phase velocity indicator: α_comb / α_phase — should be 1 in adiabatic case
+        df_ratio2 = df[(df['α_comb_raw'] > 0) & (df['α_phase_raw'] > 0)].copy()
+        df_ratio2['α ratio'] = df_ratio2['α_phase_raw'] / df_ratio2['α_comb_raw']
+        fig_ratio2 = go.Figure()
+        for cat in sorted(df_ratio2['Model'].unique()):
+            vals = df_ratio2[df_ratio2['Model'] == cat]['α ratio'].tolist()
+            fig_ratio2.add_trace(go.Box(y=vals, name=cat, boxpoints='all', jitter=0.4, pointpos=0))
+        fig_ratio2.add_hline(y=1, line_dash='dash', line_color='gray', annotation_text='Ideal (adiabatic)')
+        fig_ratio2.update_layout(title="α_phase / α_comb (heat-loss ratio)", yaxis_title="ratio", height=350, showlegend=False)
+        st.plotly_chart(fig_ratio2, use_container_width=True)
+
+    st.divider()
+
+    # ── Section 4: Phase Lag Analysis ─────────────────────────────────────────
+    st.header("4. Phase Lag Analysis")
+
+    col_p1, col_p2 = st.columns(2)
+
+    with col_p1:
+        # Raw phase lag vs period
+        sub_phi = df[df['Raw φ (rad)'] > 0]
+        fig_phi = go.Figure()
+        for model in sorted(sub_phi['Model'].unique()):
+            sub_m = sub_phi[sub_phi['Model'] == model]
+            fig_phi.add_trace(go.Scatter(
+                x=sub_m['Period (s)'], y=sub_m['Raw φ (rad)'],
+                mode='markers+lines',
+                name=model,
+                marker=dict(size=8),
+                hovertemplate='%{x:.1f}s → φ=%{y:.3f} rad<extra>' + model + '</extra>'
+            ))
+        # Ideal line: phi = omega * raw_dt — just show the data
+        fig_phi.update_layout(title="Raw Phase Lag φ vs Period", xaxis_title="Period (s)",
+                               yaxis_title="φ (rad)", height=360)
+        st.plotly_chart(fig_phi, use_container_width=True)
+
+    with col_p2:
+        # Raw Δt vs Period — shows if lag is linearly correlated with period
+        sub_dt = df[df['Raw Δt (s)'] > 0]
+        fig_dt = go.Figure()
+        for model in sorted(sub_dt['Model'].unique()):
+            sub_m = sub_dt[sub_dt['Model'] == model]
+            fig_dt.add_trace(go.Scatter(
+                x=sub_m['Period (s)'], y=sub_m['Raw Δt (s)'],
+                mode='markers+lines',
+                name=model,
+                marker=dict(size=8),
+                hovertemplate='%{x:.1f}s → Δt=%{y:.1f}s<extra>' + model + '</extra>'
+            ))
+        fig_dt.update_layout(title="Raw Time Lag Δt vs Period", xaxis_title="Period (s)",
+                              yaxis_title="Δt (s)", height=360)
+        st.plotly_chart(fig_dt, use_container_width=True)
+
+    st.divider()
+
+    # ── Section 5: Temperature Dependence ─────────────────────────────────────
+    temps_valid = df[df['T (°C)'].between(-50, 500)]
+    if temps_valid['T (°C)'].nunique() > 1:
+        st.header("5. Temperature Dependence")
+        col_t1, col_t2 = st.columns(2)
+        with col_t1:
+            sub_t = temps_valid[temps_valid['α_comb_raw'] > 0]
+            fig_temp = go.Figure()
+            for model in sorted(sub_t['Model'].unique()):
+                sub_m = sub_t[sub_t['Model'] == model]
+                fig_temp.add_trace(go.Scatter(
+                    x=sub_m['T (°C)'], y=sub_m['α_comb_raw'],
+                    mode='markers', name=model, marker=dict(size=10),
+                    hovertemplate='T=%{x}°C → α=%{y:.2e}<extra>' + model + '</extra>'
+                ))
+            fig_temp.update_layout(title="α Combined (raw) vs Temperature", xaxis_title="T (°C)",
+                                    yaxis_title="α (m²/s)", height=360)
+            st.plotly_chart(fig_temp, use_container_width=True)
+        with col_t2:
+            sub_t2 = temps_valid[temps_valid['α_phase_raw'] > 0]
+            fig_temp2 = go.Figure()
+            for model in sorted(sub_t2['Model'].unique()):
+                sub_m = sub_t2[sub_t2['Model'] == model]
+                fig_temp2.add_trace(go.Scatter(
+                    x=sub_m['T (°C)'], y=sub_m['α_phase_raw'],
+                    mode='markers', name=model, marker=dict(size=10),
+                    hovertemplate='T=%{x}°C → α=%{y:.2e}<extra>' + model + '</extra>'
+                ))
+            fig_temp2.update_layout(title="α Phase (raw) vs Temperature", xaxis_title="T (°C)",
+                                     yaxis_title="α (m²/s)", height=360)
+            st.plotly_chart(fig_temp2, use_container_width=True)
+        st.divider()
+
+    # ── Section 6: Correlation Heatmap ────────────────────────────────────────
+    st.header("6. Correlation Matrix")
+    st.caption("Pearson correlation between key numeric parameters")
+
+    numeric_cols = ['A₁ (mW)', 'A₂ (mW)', 'Amplitude Ratio A₁/A₂', 'Period (s)',
+                    'Raw Δt (s)', 'Raw φ (rad)', 'ln term',
+                    'α_comb_raw', 'α_phase_raw', 'T (°C)']
+    if df['Calibrated'].any():
+        numeric_cols += ['α_comb_cal', 'α_phase_cal', 'Net Δt (s)']
+
+    corr_df = df[numeric_cols].dropna()
+    # Remove constant/zero columns
+    corr_df = corr_df.loc[:, corr_df.std() > 0]
+
+    if len(corr_df) >= 3 and corr_df.shape[1] >= 2:
+        corr_matrix = corr_df.corr()
+        fig_corr = go.Figure(go.Heatmap(
+            z=corr_matrix.values,
+            x=corr_matrix.columns.tolist(),
+            y=corr_matrix.index.tolist(),
+            colorscale='RdBu',
+            zmid=0,
+            zmin=-1, zmax=1,
+            text=np.round(corr_matrix.values, 2),
+            texttemplate='%{text}',
+            hovertemplate='%{y} × %{x}<br>r = %{z:.2f}<extra></extra>',
+        ))
+        fig_corr.update_layout(
+            title="Correlation Matrix (Pearson r)",
+            height=500,
+            xaxis=dict(tickangle=-35),
+        )
+        st.plotly_chart(fig_corr, use_container_width=True)
+    else:
+        st.info("Not enough data for a correlation matrix (need ≥ 3 analyses with valid values).")
+
+    st.divider()
+
+    # ── Section 7: Summary Statistics Table ───────────────────────────────────
+    st.header("7. Summary Statistics by Model")
+
+    stat_cols = {
+        'α_comb_raw': 'α comb (raw)',
+        'α_phase_raw': 'α phase (raw)',
+        'α_comb_cal': 'α comb (cal)',
+        'α_phase_cal': 'α phase (cal)',
+        'Raw φ (rad)': 'φ (rad)',
+        'Amplitude Ratio A₁/A₂': 'A₁/A₂',
+    }
+
+    stat_rows = []
+    for model, grp in df.groupby('Model'):
+        row = {'Model': model, 'N': len(grp)}
+        for col, label in stat_cols.items():
+            vals = grp[col].replace(0, np.nan).dropna()
+            if len(vals) > 0:
+                row[f'{label} mean'] = vals.mean()
+                row[f'{label} std'] = vals.std()
+                row[f'{label} min'] = vals.min()
+                row[f'{label} max'] = vals.max()
+            else:
+                row[f'{label} mean'] = np.nan
+                row[f'{label} std'] = np.nan
+                row[f'{label} min'] = np.nan
+                row[f'{label} max'] = np.nan
+        stat_rows.append(row)
+
+    stat_df = pd.DataFrame(stat_rows)
+    st.dataframe(stat_df, use_container_width=True, hide_index=True)
+
+    # Download stats
+    csv_stats = stat_df.to_csv(index=False)
+    st.download_button("📥 Download Statistics (CSV)", data=csv_stats,
+                       file_name="angstrom_statistics.csv", mime="text/csv")
 
 
 def render_theory_page():
