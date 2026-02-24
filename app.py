@@ -1621,6 +1621,28 @@ def render_statistics_page():
     PALETTE = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6',
                '#1abc9c', '#e67e22', '#34495e', '#c0392b', '#16a085']
 
+    # Literature thermal diffusivity values at 50°C in mm²/s (from summary.xlsx)
+    THEORY_ALPHA = {
+        'Abs':             (0.08,  '#c0392b'),
+        'Al':              (64.0,  '#d68910'),
+        'Brass':           (34.1,  '#b7950b'),
+        'Stainless Steel': (4.0,   '#717d7e'),
+    }
+    IS_ALPHA_COL = {'α_comb_raw', 'α_phase_raw', 'α_comb_cal', 'α_phase_cal'}
+
+    def add_theory_lines(fig, show):
+        """Add horizontal dashed literature reference lines to a figure."""
+        if not show:
+            return
+        for material, (val, color) in THEORY_ALPHA.items():
+            fig.add_hline(
+                y=val,
+                line=dict(color=color, dash='dot', width=1.5),
+                annotation_text=f" {material} lit. {val}",
+                annotation_position="top right",
+                annotation_font=dict(size=10, color=color),
+            )
+
     # Controls row 1: Y axis + Chart type
     c1, c2 = st.columns(2)
     with c1:
@@ -1629,6 +1651,14 @@ def render_statistics_page():
         chart_type = st.selectbox("Chart type", CHART_TYPES, key='cb_type')
 
     y_col, y_unit, filter_nonzero = METRICS[y_label]
+
+    show_theory_cb = st.checkbox(
+        "📚 Show literature α reference lines (50°C)",
+        value=True,
+        key='cb_theory',
+        disabled=(y_col not in IS_ALPHA_COL),
+        help="Draws dotted horizontal lines at published thermal diffusivity values for each material."
+    )
 
     # Controls row 2: Group by / X axis + Color by
     c3, c4 = st.columns(2)
@@ -1820,6 +1850,9 @@ def render_statistics_page():
                 showlegend=True,
             )
 
+        if y_col in IS_ALPHA_COL:
+            add_theory_lines(fig_cb, show_theory_cb)
+
         st.plotly_chart(fig_cb, use_container_width=True)
 
         # Quick stats under the chart
@@ -1860,8 +1893,12 @@ def render_statistics_page():
         alpha_cols['α Combined (cal)'] = 'α_comb_cal'
         alpha_cols['α Phase (cal)'] = 'α_phase_cal'
 
-    sel_alphas = st.multiselect("Series", list(alpha_cols.keys()),
-                                default=list(alpha_cols.keys())[:2], key='stats_alpha_series')
+    c_sa, c_st = st.columns([3, 1])
+    with c_sa:
+        sel_alphas = st.multiselect("Series", list(alpha_cols.keys()),
+                                    default=list(alpha_cols.keys())[:2], key='stats_alpha_series')
+    with c_st:
+        show_theory_avp = st.checkbox("Show lit. values", value=True, key='theory_avp')
 
     fig_avp = go.Figure()
     pal2 = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12']
@@ -1875,7 +1912,7 @@ def render_statistics_page():
         fig_avp.add_trace(go.Scatter(
             x=sub['Period (s)'], y=sub[col_key], mode='markers', name=label,
             text=hover,
-            hovertemplate='%{text}<br>T=%{x:.1f}s<br>α=%{y:.2e}<extra>' + label + '</extra>',
+            hovertemplate='%{text}<br>T=%{x:.1f}s<br>α=%{y:.4g} mm²/s<extra>' + label + '</extra>',
             marker=dict(size=9, color=color, opacity=0.8),
         ))
         if len(sub) >= 3:
@@ -1892,6 +1929,7 @@ def render_statistics_page():
                 pass
     fig_avp.update_layout(title="α vs Oscillation Period", xaxis_title="Period T (s)",
                           yaxis_title="α (mm²/s)", height=420, hovermode='closest')
+    add_theory_lines(fig_avp, show_theory_avp)
     st.plotly_chart(fig_avp, use_container_width=True)
 
     st.divider()
@@ -1983,6 +2021,7 @@ def render_statistics_page():
                     hovertemplate='T=%{x}°C → α=%{y:.4g} mm²/s<extra>' + model + '</extra>'))
             fig_temp.update_layout(title="α Combined (raw) vs T", xaxis_title="T (°C)",
                                     yaxis_title="α (mm²/s)", height=360)
+            add_theory_lines(fig_temp, True)
             st.plotly_chart(fig_temp, use_container_width=True)
         with col_t2:
             sub_t2 = df[df['α_phase_raw'] > 0]
@@ -1995,6 +2034,7 @@ def render_statistics_page():
                     hovertemplate='T=%{x}°C → α=%{y:.4g} mm²/s<extra>' + model + '</extra>'))
             fig_temp2.update_layout(title="α Phase (raw) vs T", xaxis_title="T (°C)",
                                      yaxis_title="α (mm²/s)", height=360)
+            add_theory_lines(fig_temp2, True)
             st.plotly_chart(fig_temp2, use_container_width=True)
         st.divider()
 
