@@ -507,7 +507,7 @@ def main():
         # Credit pinned to sidebar bottom
         st.markdown("""
         <div class="sidebar-credit">
-            © Created by Omer Vered<br>
+            © Created by Omer Vered with Claude Code<br>
             Hayun Group, BGU University, Israel
         </div>
         """, unsafe_allow_html=True)
