@@ -455,7 +455,7 @@ def _render_login():
     <style>
     [data-testid="stSidebar"] { display: none; }
     .login-wrap { max-width: 400px; margin: 8vh auto 0 auto; padding: 2.5rem 2rem; border-radius: 12px; }
-    .login-wrap label { font-size: 1.3rem !important; font-weight: 700 !important; }
+    [data-testid="stTextInput"] label { font-size: 1.3rem !important; font-weight: 700 !important; }
     </style>
     """, unsafe_allow_html=True)
 
