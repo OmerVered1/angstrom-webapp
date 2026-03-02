@@ -523,11 +523,24 @@ def main():
     # Sidebar navigation
     with st.sidebar:
         st.markdown("""
-        <div style="display:flex; align-items:center; justify-content:center; gap:0.8rem; padding: 0.8rem 0 0.6rem 0;">
-            <span style="font-size:4rem; line-height:1;">🌡️</span>
-            <img src="https://anthropic.gallerycdn.vsassets.io/extensions/anthropic/claude-code/2.1.63/1772250501840/Microsoft.VisualStudio.Services.Icons.Default"
-                 width="64" height="64"
-                 style="border-radius:12px; image-rendering:pixelated;" />
+        <div style="display:flex; align-items:center; justify-content:center; gap:1rem; padding: 1rem 0 0.6rem 0;">
+            <span style="font-size:5rem; line-height:1;">🌡️</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 9" width="80" height="80"
+                 style="image-rendering:pixelated; filter: drop-shadow(0 0 3px white);">
+              <!-- top body (no arms) -->
+              <rect x="2" y="0" width="5" height="2" fill="#CC6040"/>
+              <!-- arm rows -->
+              <rect x="0" y="2" width="9" height="2" fill="#CC6040"/>
+              <!-- eyes row -->
+              <rect x="0" y="4" width="9" height="1" fill="#CC6040"/>
+              <rect x="2" y="4" width="1" height="1" fill="#111"/>
+              <rect x="6" y="4" width="1" height="1" fill="#111"/>
+              <!-- lower body -->
+              <rect x="0" y="5" width="9" height="2" fill="#CC6040"/>
+              <!-- legs -->
+              <rect x="1" y="7" width="2" height="2" fill="#CC6040"/>
+              <rect x="6" y="7" width="2" height="2" fill="#CC6040"/>
+            </svg>
         </div>
         """, unsafe_allow_html=True)
         st.divider()
