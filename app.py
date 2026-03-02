@@ -584,12 +584,23 @@ def render_home_page():
 
     st.divider()
 
-    # ── Live stat ─────────────────────────────────────────────────────────────
-    total = db.get_analysis_count()
-    col_s1, col_s2, col_s3 = st.columns(3)
-    col_s1.metric("Total Analyses Saved", total)
-    col_s2.metric("Institution", "BGU · Israel")
-    col_s3.metric("Method", "Angstrom (Radial)")
+    # ── Live stats ────────────────────────────────────────────────────────────
+    analyses = db.get_all_analyses()
+    total = len(analyses)
+
+    if analyses:
+        alphas = [a.get('alpha_combined_raw') for a in analyses if a.get('alpha_combined_raw')]
+        avg_alpha = (sum(alphas) / len(alphas)) * 1e6 if alphas else None
+        models = len(set(a.get('model_name', '') for a in analyses if a.get('model_name')))
+        latest = max((a.get('test_date', '') for a in analyses if a.get('test_date')), default='—')
+    else:
+        avg_alpha, models, latest = None, 0, '—'
+
+    col_s1, col_s2, col_s3, col_s4 = st.columns(4)
+    col_s1.metric("Total Analyses", total)
+    col_s2.metric("Unique Models", models)
+    col_s3.metric("Avg α (raw)", f"{avg_alpha:.4g} mm²/s" if avg_alpha else "—")
+    col_s4.metric("Latest Test Date", latest)
 
     st.divider()
 
