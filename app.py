@@ -529,9 +529,8 @@ def main():
     with st.sidebar:
         if _icon_b64:
             st.markdown(f"""
-        <div style="display:flex; align-items:center; justify-content:center; padding: 1rem 0 0.6rem 0;">
-            <img src="data:image/png;base64,{_icon_b64}" width="140"
-                 style="object-fit:contain;">
+        <div style="display:flex; align-items:center; justify-content:center; padding: 0.5rem 0 0.2rem 0;">
+            <img src="data:image/png;base64,{_icon_b64}" style="width:100%; object-fit:contain;">
         </div>
         """, unsafe_allow_html=True)
         else:
