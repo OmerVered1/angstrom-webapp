@@ -458,10 +458,13 @@ def _render_login():
     </style>
     """, unsafe_allow_html=True)
 
+    _login_icon_path = Path(__file__).parent / "sidebar_icon.png"
+    _login_icon_b64 = base64.b64encode(_login_icon_path.read_bytes()).decode() if _login_icon_path.exists() else None
+
     with st.container():
         st.markdown('<div class="login-wrap">', unsafe_allow_html=True)
-        st.markdown("## 🌡️ Radial Heat Wave Analysis")
-        st.caption("Hayun Group · BGU University · Israel")
+        if _login_icon_b64:
+            st.markdown(f'<div style="text-align:center"><img src="data:image/png;base64,{_login_icon_b64}" style="width:180px; object-fit:contain;"></div>', unsafe_allow_html=True)
         st.divider()
         password = st.text_input("Lab password", type="password", placeholder="Enter password")
         if st.button("Enter", type="primary", use_container_width=True):
