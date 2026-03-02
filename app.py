@@ -612,7 +612,8 @@ def render_home_page():
         alphas = [a.get('alpha_combined_raw') for a in analyses if a.get('alpha_combined_raw')]
         avg_alpha = (sum(alphas) / len(alphas)) * 1e6 if alphas else None
         models = len(set(a.get('model_name', '') for a in analyses if a.get('model_name')))
-        latest = max((a.get('test_date', '') for a in analyses if a.get('test_date')), default='—')
+        dated = [(parse_test_date(a.get('test_date', '')), a.get('test_date', '')) for a in analyses if a.get('test_date')]
+        latest = max(dated, key=lambda x: x[0])[1] if dated else '—'
     else:
         avg_alpha, models, latest = None, 0, '—'
 
