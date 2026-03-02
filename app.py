@@ -9,6 +9,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime
+from pathlib import Path
 import io
 import base64
 import time
@@ -520,27 +521,24 @@ def main():
     </style>
     """, unsafe_allow_html=True)
 
+    # Load sidebar icon
+    _icon_path = Path(__file__).parent / "claws_happy.png"
+    _icon_b64 = base64.b64encode(_icon_path.read_bytes()).decode() if _icon_path.exists() else None
+
     # Sidebar navigation
     with st.sidebar:
-        st.markdown("""
+        if _icon_b64:
+            st.markdown(f"""
         <div style="display:flex; align-items:center; justify-content:center; gap:1rem; padding: 1rem 0 0.6rem 0;">
             <span style="font-size:5rem; line-height:1;">🌡️</span>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 9" width="80" height="80"
-                 style="image-rendering:pixelated; filter: drop-shadow(0 0 3px white);">
-              <!-- top body (no arms) -->
-              <rect x="2" y="0" width="5" height="2" fill="#CC6040"/>
-              <!-- arm rows -->
-              <rect x="0" y="2" width="9" height="2" fill="#CC6040"/>
-              <!-- eyes row -->
-              <rect x="0" y="4" width="9" height="1" fill="#CC6040"/>
-              <rect x="2" y="4" width="1" height="1" fill="#111"/>
-              <rect x="6" y="4" width="1" height="1" fill="#111"/>
-              <!-- lower body -->
-              <rect x="0" y="5" width="9" height="2" fill="#CC6040"/>
-              <!-- legs -->
-              <rect x="1" y="7" width="2" height="2" fill="#CC6040"/>
-              <rect x="6" y="7" width="2" height="2" fill="#CC6040"/>
-            </svg>
+            <img src="data:image/png;base64,{_icon_b64}" width="80" height="80"
+                 style="object-fit:contain; filter: drop-shadow(0 0 3px white);">
+        </div>
+        """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+        <div style="display:flex; align-items:center; justify-content:center; gap:1rem; padding: 1rem 0 0.6rem 0;">
+            <span style="font-size:5rem; line-height:1;">🌡️</span>
         </div>
         """, unsafe_allow_html=True)
         st.divider()
