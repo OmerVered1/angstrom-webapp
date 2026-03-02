@@ -11,6 +11,7 @@ from plotly.subplots import make_subplots
 from datetime import datetime
 import io
 import base64
+import time
 
 from analysis import (
     AnalysisParams, AnalysisResults,
@@ -56,6 +57,7 @@ def init_session_state():
         'analysis_results': None,
         'step': 1,  # 1=Upload, 2=Select Range, 3=Analysis, 4=Results
         'manual_clicks': [],
+        'last_save_time': 0,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -444,10 +446,42 @@ def results_to_dataframe(results: AnalysisResults, params: AnalysisParams) -> pd
     return pd.DataFrame(data)
 
 
+# ==================== AUTH ====================
+
+def _render_login():
+    """Full-page login screen shown before anything else."""
+    st.markdown("""
+    <style>
+    [data-testid="stSidebar"] { display: none; }
+    .login-wrap { max-width: 400px; margin: 8vh auto 0 auto; padding: 2.5rem 2rem; border-radius: 12px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    with st.container():
+        st.markdown('<div class="login-wrap">', unsafe_allow_html=True)
+        st.markdown("## 🌡️ Radial Heat Wave Analysis")
+        st.caption("Hayun Group · BGU University · Israel")
+        st.divider()
+        password = st.text_input("Lab password", type="password", placeholder="Enter password")
+        if st.button("Enter", type="primary", use_container_width=True):
+            correct = st.secrets.get("APP_PASSWORD", "angstrom2024")
+            if password == correct:
+                st.session_state['authenticated'] = True
+                st.rerun()
+            else:
+                st.error("Incorrect password.")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
 # ==================== MAIN APPLICATION ====================
 
 def main():
     init_session_state()
+
+    # ── Password gate ────────────────────────────────────────────────────────
+    if not st.session_state.get('authenticated'):
+        _render_login()
+        st.stop()
 
     # Global CSS — larger sidebar title, larger nav font, pinned credit
     st.markdown("""
@@ -494,7 +528,7 @@ def main():
         st.header("Navigation")
         page = st.radio(
             "Select Page",
-            ["📊 New Analysis", "📷 Upload Results Image", "📋 Results Summary", "📁 Results History", "📈 Statistics", "📐 Theory & Mathematical Evolution"],
+            ["🏠 Home", "📊 New Analysis", "📷 Upload Results Image", "📋 Results Summary", "📁 Results History", "📈 Statistics", "📐 Theory & Mathematical Evolution"],
             index=0
         )
 
@@ -512,7 +546,9 @@ def main():
         </div>
         """, unsafe_allow_html=True)
     
-    if page == "📊 New Analysis":
+    if page == "🏠 Home":
+        render_home_page()
+    elif page == "📊 New Analysis":
         render_analysis_page()
     elif page == "📷 Upload Results Image":
         render_upload_image_page()
@@ -524,6 +560,69 @@ def main():
         render_statistics_page()
     else:
         render_theory_page()
+
+
+def render_home_page():
+    """Render the home / landing page."""
+    st.markdown("""
+    <style>
+    .home-hero { text-align: center; padding: 2rem 0 1rem 0; }
+    .home-hero h1 { font-size: 2.6rem; font-weight: 800; margin-bottom: 0.3rem; }
+    .home-hero p  { font-size: 1.15rem; color: #888; }
+    .feature-card { background: var(--secondary-background-color); border-radius: 10px; padding: 1.2rem 1.4rem; height: 100%; }
+    .feature-card h4 { margin-bottom: 0.4rem; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ── Hero ─────────────────────────────────────────────────────────────────
+    st.markdown("""
+    <div class="home-hero">
+        <h1>🌡️ Radial Heat Wave Analysis</h1>
+        <p>Thermal diffusivity measurement via the Angstrom method · Hayun Group, BGU University</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── Live stat ─────────────────────────────────────────────────────────────
+    total = db.get_analysis_count()
+    col_s1, col_s2, col_s3 = st.columns(3)
+    col_s1.metric("Total Analyses Saved", total)
+    col_s2.metric("Institution", "BGU · Israel")
+    col_s3.metric("Method", "Angstrom (Radial)")
+
+    st.divider()
+
+    # ── Quick-start guide ────────────────────────────────────────────────────
+    st.subheader("🚀 How to use")
+    step1, step2, step3 = st.columns(3)
+    with step1:
+        st.markdown('<div class="feature-card"><h4>1️⃣ Upload Data</h4>Go to <b>New Analysis</b>, upload your C80 and Keithley files, set radii and temperature.</div>', unsafe_allow_html=True)
+    with step2:
+        st.markdown('<div class="feature-card"><h4>2️⃣ Run Analysis</h4>Select the steady-state region on the plot, run the Angstrom fit, and review the α results.</div>', unsafe_allow_html=True)
+    with step3:
+        st.markdown('<div class="feature-card"><h4>3️⃣ Save & Explore</h4>Save results to the database, then explore history, summaries, and statistics across all runs.</div>', unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── Feature overview ─────────────────────────────────────────────────────
+    st.subheader("📦 What's inside")
+    f1, f2 = st.columns(2)
+    with f1:
+        st.markdown("""
+        - **📊 New Analysis** — upload raw data files and compute α
+        - **📷 Upload Results Image** — extract values from a photo via OCR
+        - **📋 Results Summary** — full table of all saved results
+        """)
+    with f2:
+        st.markdown("""
+        - **📁 Results History** — per-analysis detail view and delete
+        - **📈 Statistics** — charts, correlations, and trends across runs
+        - **📐 Theory** — mathematical background and derivations
+        """)
+
+    st.divider()
+    st.caption("© Omer Vered · Hayun Group · BGU University · Built with Claude Code")
 
 
 def render_analysis_page():
@@ -847,10 +946,14 @@ def render_analysis_page():
         with col3:
             # Save to database
             if st.button("💾 Save to Database", type="primary"):
-                try:
+                _last = st.session_state.get('last_save_time', 0)
+                if time.time() - _last < 30:
+                    st.warning(f"⏳ Please wait {int(30 - (time.time() - _last))}s before saving again.")
+                else:
+                  try:
                     # Use cached graph JSON
                     graph_json = st.session_state.get('cached_graph_json')
-                    
+
                     analysis_id = db.save_analysis(
                         model_name=params.model_name,
                         test_date=params.test_date,
@@ -887,8 +990,9 @@ def render_analysis_page():
                         temperature_c=temperature_c,
                         graph_json=graph_json
                     )
+                    st.session_state['last_save_time'] = time.time()
                     st.success(f"✅ Saved to database! (ID: {analysis_id})")
-                except Exception as e:
+                  except Exception as e:
                     st.error(f"Failed to save: {str(e)}")
 
 
@@ -998,7 +1102,10 @@ def render_upload_image_page():
     
     # Save button
     if st.button("💾 Save Results to Database", type="primary", use_container_width=True):
-        if not model_name:
+        _last = st.session_state.get('last_save_time', 0)
+        if time.time() - _last < 30:
+            st.warning(f"⏳ Please wait {int(30 - (time.time() - _last))}s before saving again.")
+        elif not model_name:
             st.error("Model name is required!")
         else:
             try:
@@ -1052,6 +1159,7 @@ def render_upload_image_page():
                     temperature_c=temperature_c,
                     graph_json=base64.b64encode(st.session_state.get('uploaded_image_bytes', b'')).decode('utf-8') if st.session_state.get('uploaded_image_bytes') else None
                 )
+                st.session_state['last_save_time'] = time.time()
                 st.success(f"✅ Saved to database! (ID: {analysis_id})")
                 st.balloons()
             except Exception as e:

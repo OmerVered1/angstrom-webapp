@@ -14,7 +14,7 @@ import base64
 def get_supabase_client():
     """Get Supabase client using credentials from secrets or environment."""
     from supabase import create_client, Client
-    
+
     # Try to get from Streamlit secrets first, then environment variables
     try:
         url = st.secrets.get("SUPABASE_URL", os.environ.get("SUPABASE_URL"))
@@ -22,10 +22,33 @@ def get_supabase_client():
     except:
         url = os.environ.get("SUPABASE_URL")
         key = os.environ.get("SUPABASE_KEY")
-    
+
     if not url or not key:
         raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set in secrets or environment")
-    
+
+    return create_client(url, key)
+
+
+def get_supabase_admin_client():
+    """Get Supabase client using service role key for privileged operations (e.g. delete)."""
+    from supabase import create_client
+
+    try:
+        url = st.secrets.get("SUPABASE_URL", os.environ.get("SUPABASE_URL"))
+        # Prefer service role key; fall back to anon key so local dev still works
+        key = (
+            st.secrets.get("SUPABASE_SERVICE_KEY")
+            or os.environ.get("SUPABASE_SERVICE_KEY")
+            or st.secrets.get("SUPABASE_KEY")
+            or os.environ.get("SUPABASE_KEY")
+        )
+    except:
+        url = os.environ.get("SUPABASE_URL")
+        key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_KEY")
+
+    if not url or not key:
+        raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_KEY must be set in secrets or environment")
+
     return create_client(url, key)
 
 
@@ -162,8 +185,8 @@ def get_analysis_by_id(analysis_id: int) -> Optional[Dict[str, Any]]:
 
 
 def delete_analysis(analysis_id: int) -> bool:
-    """Delete an analysis by ID. Returns True if successful."""
-    supabase = get_supabase_client()
+    """Delete an analysis by ID. Uses service role key to bypass RLS. Returns True if successful."""
+    supabase = get_supabase_admin_client()
     
     result = supabase.table('analyses').delete().eq('id', analysis_id).execute()
     
