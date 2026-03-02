@@ -844,7 +844,35 @@ def render_analysis_page():
         # Show overview plot with selection
         fig = create_overview_plot(t_src, v_src, t_cal, v_cal, selection)
         st.plotly_chart(fig, width="stretch")
-        
+
+        # Manual peak selection inputs
+        params_preview = st.session_state.get('params')
+        if params_preview and params_preview.analysis_mode == "Manual":
+            st.info("📌 **Manual Mode** — Read the peak times from the plot above and enter them below.")
+            t_mid = float((selection[0] + selection[1]) / 2)
+            mc1, mc2, mc3 = st.columns(3)
+            with mc1:
+                manual_src_peak1 = st.number_input(
+                    "Source Peak 1 time (s)",
+                    value=float(selection[0]),
+                    format="%.2f",
+                    help="Time of the first source (Keithley) peak"
+                )
+            with mc2:
+                manual_src_peak2 = st.number_input(
+                    "Source Peak 2 time (s)",
+                    value=t_mid,
+                    format="%.2f",
+                    help="Time of the second source (Keithley) peak"
+                )
+            with mc3:
+                manual_cal_peak = st.number_input(
+                    "Response Peak time (s)",
+                    value=t_mid,
+                    format="%.2f",
+                    help="Time of the response (C80) peak between the two source peaks"
+                )
+
         # Run analysis button
         if st.button("🔬 Run Analysis", type="primary", use_container_width=True):
             with st.spinner("Running analysis..."):
@@ -865,15 +893,18 @@ def render_analysis_page():
                             params, t_min, t_max
                         )
                     else:
-                        # For manual mode, we'll use auto for now
-                        # (manual click selection would require JavaScript interop)
-                        st.warning("Manual mode uses automatic peak detection in web version.")
-                        results = run_auto_analysis(
+                        click_coords = [
+                            (manual_src_peak1, 0),
+                            (manual_src_peak2, 0),
+                            (manual_cal_peak, 0),
+                        ]
+                        results = run_manual_analysis(
                             t_cal[mask_c].reset_index(drop=True),
                             v_cal[mask_c].reset_index(drop=True),
                             t_src[mask_s].reset_index(drop=True),
                             v_src[mask_s].reset_index(drop=True),
-                            params, t_min, t_max
+                            params, t_min, t_max,
+                            click_coords
                         )
                     
                     st.session_state['analysis_results'] = results
