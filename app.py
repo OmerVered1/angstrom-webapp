@@ -594,8 +594,8 @@ def render_home_page():
     # ── Hero ─────────────────────────────────────────────────────────────────
     st.markdown("""
     <div class="home-hero">
-        <h1>🌡️ Radial Heat Wave Analysis</h1>
-        <p>Thermal diffusivity measurement via the Angstrom method · Hayun Group, BGU University</p>
+        <h1>Radial Heat Wave Analysis Research Toolkit</h1>
+        <p>Dynamic Method for Characterization of Thermal Diffusivity of Insulators by Modulated Analysis of Heat Waves Based on the Angstrom Method, a Thesis Research by Omer Vered, BGU</p>
     </div>
     """, unsafe_allow_html=True)
 
