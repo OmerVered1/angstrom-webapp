@@ -522,22 +522,21 @@ def main():
     """, unsafe_allow_html=True)
 
     # Load sidebar icon
-    _icon_path = Path(__file__).parent / "claws_happy.png"
+    _icon_path = Path(__file__).parent / "sidebar_icon.png"
     _icon_b64 = base64.b64encode(_icon_path.read_bytes()).decode() if _icon_path.exists() else None
 
     # Sidebar navigation
     with st.sidebar:
         if _icon_b64:
             st.markdown(f"""
-        <div style="display:flex; align-items:center; justify-content:center; gap:1rem; padding: 1rem 0 0.6rem 0;">
-            <span style="font-size:5rem; line-height:1;">🌡️</span>
-            <img src="data:image/png;base64,{_icon_b64}" width="80" height="80"
-                 style="object-fit:contain; filter: drop-shadow(0 0 3px white);">
+        <div style="display:flex; align-items:center; justify-content:center; padding: 1rem 0 0.6rem 0;">
+            <img src="data:image/png;base64,{_icon_b64}" width="140"
+                 style="object-fit:contain;">
         </div>
         """, unsafe_allow_html=True)
         else:
             st.markdown("""
-        <div style="display:flex; align-items:center; justify-content:center; gap:1rem; padding: 1rem 0 0.6rem 0;">
+        <div style="display:flex; align-items:center; justify-content:center; padding: 1rem 0 0.6rem 0;">
             <span style="font-size:5rem; line-height:1;">🌡️</span>
         </div>
         """, unsafe_allow_html=True)
