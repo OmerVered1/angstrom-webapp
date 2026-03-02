@@ -467,7 +467,8 @@ def _render_login():
         if _login_icon_b64:
             st.markdown(f'<div style="text-align:center"><img src="data:image/png;base64,{_login_icon_b64}" style="width:180px; object-fit:contain;"></div>', unsafe_allow_html=True)
         st.divider()
-        password = st.text_input("Lab password", type="password", placeholder="Enter password")
+        st.markdown("<p style='font-size:1.3rem; font-weight:700; margin-bottom:0.3rem;'>Lab password</p>", unsafe_allow_html=True)
+        password = st.text_input("Lab password", type="password", placeholder="Enter password", label_visibility="collapsed")
         if st.button("Enter", type="primary", use_container_width=True):
             correct = st.secrets.get("APP_PASSWORD", "angstrom2024")
             if password == correct:
