@@ -1349,7 +1349,8 @@ def render_history_page():
         'alpha_combined_cal': 'α_comb (cal) (mm²/s)',
         'alpha_phase_raw': 'α_phase (raw) (mm²/s)',
         'alpha_phase_cal': 'α_phase (cal) (mm²/s)',
-        'use_calibration': 'Cal'
+        'use_calibration': 'Cal',
+        'temperature_c': 'T (°C)'
     })
 
     # Convert m²/s → mm²/s and format
@@ -1407,6 +1408,7 @@ def render_history_page():
                     'Model': analysis.get('model_name', 'N/A'),
                     'Test Date': analysis.get('test_date', 'N/A'),
                     'Radii': f"r₁={analysis.get('r1_mm', 'N/A')}mm, r₂={analysis.get('r2_mm', 'N/A')}mm",
+                    'Temperature (°C)': safe_format(analysis.get('temperature_c'), ".1f", "°C"),
                     'Period T': safe_format(analysis.get('period_t'), ".2f", "s"),
                     'Frequency': safe_format(analysis.get('frequency_f'), ".5f", "Hz"),
                     'Raw Δt': safe_format(analysis.get('raw_lag_dt'), ".2f", "s"),
