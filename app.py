@@ -529,8 +529,8 @@ def main():
     with st.sidebar:
         if _icon_b64:
             st.markdown(f"""
-        <div style="display:flex; align-items:center; justify-content:center; padding: 0.5rem 0 0.2rem 0;">
-            <img src="data:image/png;base64,{_icon_b64}" style="width:100%; object-fit:contain;">
+        <div style="display:flex; align-items:center; justify-content:center; padding: 0; margin: -1rem -1rem 0 -1rem;">
+            <img src="data:image/png;base64,{_icon_b64}" style="width:115%; object-fit:contain;">
         </div>
         """, unsafe_allow_html=True)
         else:
@@ -611,11 +611,10 @@ def render_home_page():
     else:
         avg_alpha, models, latest = None, 0, '—'
 
-    col_s1, col_s2, col_s3, col_s4 = st.columns(4)
+    col_s1, col_s2, col_s3 = st.columns(3)
     col_s1.metric("Total Analyses", total)
     col_s2.metric("Unique Models", models)
-    col_s3.metric("Avg α (raw)", f"{avg_alpha:.4g} mm²/s" if avg_alpha else "—")
-    col_s4.metric("Latest Test Date", latest)
+    col_s3.metric("Latest Test Date", latest)
 
     st.divider()
 
