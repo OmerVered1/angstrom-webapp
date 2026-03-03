@@ -2311,9 +2311,9 @@ the one-dimensional temperature field satisfies:
     )
     st.markdown(
         r"""
-where μ² = hP/kS encodes the geometry (h = surface heat-transfer coefficient, P = rod
-perimeter, k = thermal conductivity, S = cross-sectional area). Substituting the steady-state
-harmonic ansatz T − T∞ = θ(x)eⁱωᵗ and solving the resulting ODE yields a travelling wave:
+where $\mu^2 = hP/kS$ encodes the geometry ($h$ = surface heat-transfer coefficient, $P$ = rod
+perimeter, $k$ = thermal conductivity, $S$ = cross-sectional area). Substituting the steady-state
+harmonic ansatz $T - T_\infty = \theta(x)e^{i\omega t}$ and solving the resulting ODE yields a travelling wave:
 """
     )
     st.latex(
@@ -2321,11 +2321,11 @@ harmonic ansatz T − T∞ = θ(x)eⁱωᵗ and solving the resulting ODE yields
     )
     st.markdown(
         r"""
-where m_A is the **amplitude attenuation coefficient** and m_φ the **spatial phase coefficient**.
+where $m_A$ is the **amplitude attenuation coefficient** and $m_\varphi$ the **spatial phase coefficient**.
 
 #### Ångström's Key Derivation
 
-Comparing the wave at x₁ and x₂ (separation Δx = x₂ − x₁):
+Comparing the wave at $x_1$ and $x_2$ (separation $\Delta x = x_2 - x_1$):
 """
     )
     col1, col2 = st.columns(2)
@@ -2335,7 +2335,7 @@ Comparing the wave at x₁ and x₂ (separation Δx = x₂ − x₁):
         st.latex(r"m_\varphi = \frac{\varphi}{\Delta x}")
     st.markdown(
         r"""
-The complex propagation constant λ = m_A + im_φ satisfies λ² = μ² + iω/α. Equating the
+The complex propagation constant $\lambda = m_A + im_\varphi$ satisfies $\lambda^2 = \mu^2 + i\omega/\alpha$. Equating the
 imaginary parts of both sides:
 """
     )
@@ -2437,8 +2437,8 @@ propagating thermal wave** governed by the modified Bessel equation of order zer
     )
     st.markdown(
         r"""
-The asymptotic expansion K₀(rλ) ≈ √(π/2rλ) · e^(−rλ) for large |rλ| recovers Ångström's
-linear result, with the geometric factor √(r₁/r₂) arising from the cylindrical spreading of
+The asymptotic expansion $K_0(r\lambda) \approx \sqrt{\pi/2r\lambda}\,e^{-r\lambda}$ for large $|r\lambda|$ recovers Ångström's
+linear result, with the geometric factor $\sqrt{r_1/r_2}$ arising from the cylindrical spreading of
 the wavefront. This factor appears explicitly in the combined diffusivity formula implemented
 in this application:
 """
@@ -2505,12 +2505,12 @@ https://doi.org/10.1063/1.1728417
         r"- \mu^2\!\left(T - T_\infty\right)"
     )
     st.markdown(
-        """
+        r"""
 | Symbol | Meaning |
 |--------|---------|
-| α | Thermal diffusivity (m²/s) |
-| μ² | Heat loss coefficient (m⁻²), defined as *hP/kS* for a cylindrical geometry |
-| T∞ | Ambient temperature |
+| $\alpha$ | Thermal diffusivity (m²/s) |
+| $\mu^2$ | Heat loss coefficient (m⁻²), defined as $hP/kS$ for a cylindrical geometry |
+| $T_\infty$ | Ambient temperature |
 """
     )
 
@@ -2523,7 +2523,7 @@ https://doi.org/10.1063/1.1728417
     )
     st.latex(r"T(r,t) - T_\infty = \theta(r)\,e^{i\omega t}")
     st.markdown(
-        "Substituting into the radial heat equation and dividing by the common factor *e^(iωt)*:"
+        r"Substituting into the radial heat equation and dividing by the common factor $e^{i\omega t}$:"
     )
     st.latex(
         r"\frac{i\omega}{\alpha}\,\theta = "
@@ -2540,9 +2540,9 @@ https://doi.org/10.1063/1.1728417
     st.markdown("We define the **Complex Propagation Constant** λ:")
     st.latex(r"\lambda = \sqrt{\dfrac{i\omega}{\alpha} + \mu^2}")
     st.markdown(
-        "The spatial temperature θ(*r*) is solved using modified Bessel functions. "
-        "For an infinite medium (T → 0 as r → ∞), we use the modified Bessel function "
-        "of the second kind, K₀:"
+        r"The spatial temperature $\theta(r)$ is solved using modified Bessel functions. "
+        r"For an infinite medium ($T \to 0$ as $r \to \infty$), we use the modified Bessel function "
+        r"of the second kind, $K_0$:"
     )
     st.latex(r"\theta(r) = C \cdot K_0(r\lambda)")
 
@@ -2571,8 +2571,8 @@ https://doi.org/10.1063/1.1728417
     # Step 6
     st.subheader("6. Separation of Real and Imaginary Components")
     st.markdown(
-        r"Let Δ*r* = *r₂* − *r₁*. We define λ in terms of its real attenuation component "
-        r"(*m_A*) and imaginary phase component (*m_φ*):"
+        r"Let $\Delta r = r_2 - r_1$. We define $\lambda$ in terms of its real attenuation component "
+        r"($m_A$) and imaginary phase component ($m_\varphi$):"
     )
     st.latex(r"\lambda = m_A + i\,m_\varphi")
     col1, col2 = st.columns(2)
@@ -2584,7 +2584,7 @@ https://doi.org/10.1063/1.1728417
     # Step 7
     st.subheader("7. Squaring the Propagation Constant")
     st.markdown(
-        "To isolate the diffusivity α from the loss term μ², we square λ:"
+        r"To isolate the diffusivity $\alpha$ from the loss term $\mu^2$, we square $\lambda$:"
     )
     st.latex(
         r"\lambda^2 = (m_A + i\,m_\varphi)^2 = (m_A^2 - m_\varphi^2) + i(2\,m_A m_\varphi)"
@@ -2620,8 +2620,8 @@ https://doi.org/10.1063/1.1728417
     with col2:
         st.subheader("B. Phase-Only Solution")
         st.markdown(
-            "Valid under **adiabatic conditions** where heat loss is negligible "
-            "(μ² ≈ 0), giving *m_A* = *m_φ*:"
+            r"Valid under **adiabatic conditions** where heat loss is negligible "
+            r"($\mu^2 \approx 0$), giving $m_A = m_\varphi$:"
         )
         st.latex(
             r"\alpha_{\text{phase}} = \frac{\omega}{2\,m_\varphi^2} "
