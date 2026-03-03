@@ -553,18 +553,6 @@ def main():
         )
 
         st.divider()
-        st.caption(f"Total analyses saved: {db.get_analysis_count()}")
-
-        # Native divider — same style as all other sidebar dividers
-        st.divider()
-
-        # Credit pinned to sidebar bottom
-        st.markdown("""
-        <div class="sidebar-credit">
-            © Created by Omer Vered with Claude Code<br>
-            Hayun Group, BGU University, Israel
-        </div>
-        """, unsafe_allow_html=True)
     
     if page == "🏠 Home":
         render_home_page()
@@ -652,8 +640,6 @@ def render_home_page():
         - **📐 Theory** — mathematical background and derivations
         """)
 
-    st.divider()
-    st.caption("© Omer Vered · Hayun Group · BGU University · Built with Claude Code")
 
 
 def render_analysis_page():
