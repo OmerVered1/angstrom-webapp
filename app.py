@@ -569,6 +569,14 @@ def main():
     else:
         render_theory_page()
 
+    render_footer()
+
+
+def render_footer():
+    """Render the shared credit footer shown on every page."""
+    st.divider()
+    st.caption("© Omer Vered · Hayun Group · Ben Gurion University · Built with Claude Code")
+
 
 def render_home_page():
     """Render the home / landing page."""
@@ -639,9 +647,6 @@ def render_home_page():
         - **📈 Statistics** — charts, correlations, and trends across runs
         - **📐 Theory** — mathematical background and derivations
         """)
-
-    st.divider()
-    st.caption("© Omer Vered · Hayun Group · Ben Gurion University · Built with Claude Code")
 
 
 def render_analysis_page():
