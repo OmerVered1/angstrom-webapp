@@ -640,6 +640,8 @@ def render_home_page():
         - **📐 Theory** — mathematical background and derivations
         """)
 
+    st.divider()
+    st.caption("© Omer Vered · Hayun Group · Ben Gurion University · Built with Claude Code")
 
 
 def render_analysis_page():
