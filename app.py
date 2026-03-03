@@ -2346,8 +2346,8 @@ imaginary parts of both sides:
     )
     st.markdown(
         r"""
-The heat-loss term μ² cancels entirely from this combined expression — it appears only in the
-real part (m_A² − m_φ²), leaving α determined by amplitude and phase alone, with no knowledge
+The heat-loss term $\mu^2$ cancels entirely from this combined expression — it appears only in the
+real part ($m_A^2 - m_\varphi^2$), leaving $\alpha$ determined by amplitude and phase alone, with no knowledge
 of absolute heat flux required.
 
 #### Significance & Limitations
@@ -2360,7 +2360,7 @@ However, the derivation assumes a **one-dimensional, semi-infinite rod** with un
 and isotropic properties. Extension to disc, cylindrical, and annular geometries — necessary for
 bulk samples and modern materials science — required the subsequent Bessel-function formulation
 described in the Mathematical Derivation section. Notably, the linear formula above becomes the
-radial formula upon replacing ln(A₁/A₂) with ln(A₁√r₁ / A₂√r₂) — the geometric correction
+radial formula upon replacing $\ln(A_1/A_2)$ with $\ln(A_1\sqrt{r_1}/A_2\sqrt{r_2})$ — the geometric correction
 accounting for the cylindrical spreading of the wavefront.
 """
     )
@@ -2387,7 +2387,7 @@ disc of thickness L the thermal diffusivity follows directly from the half-rise 
 Cowan **[2]** recognised that at high temperatures (> 500 °C) radiative cooling from the disc
 surfaces significantly distorts the temperature-rise curve, causing the simple formula above to
 overestimate α. He derived a correction factor ξ based on the dimensionless ratio of the
-temperature at five half-rise times to the peak temperature, T(5t½)/T_max:
+temperature at five half-rise times to the peak temperature, $T(5t_{1/2})/T_\text{max}$:
 """
     )
     st.latex(r"\alpha_\text{corrected} = \frac{0.1388\, L^2}{t_{1/2}\cdot \xi\!\left(\frac{T(5t_{1/2})}{T_\text{max}}\right)}")
@@ -2401,7 +2401,7 @@ flash measurements — critical for ceramics, refractory metals, and carbides te
 In his 1963 extension **[3]**, Cowan considered a plate driven sinusoidally from one face with
 Newtonian heat losses from both surfaces. His central finding: the **phase lag** φ between the
 front and rear oscillations is far less sensitive to surface heat losses than the **amplitude
-ratio** A₁/A₂.
+ratio** $A_1/A_2$.
 
 For an adiabatic plate of thickness L, the phase-only formula gives:
 """
@@ -2414,7 +2414,7 @@ Cowan showed that φ shifts by only a **second-order correction** in the heat-lo
 Quantitatively: for materials with emissivity up to ε ≈ 0.9 tested below 2000 °C, the
 phase-derived α carries an error below ~5 %, while amplitude-only values can deviate by 30–50 %.
 
-This result provides the theoretical justification for treating α_phase as the preferred
+This result provides the theoretical justification for treating $\alpha_\text{phase}$ as the preferred
 observable in demanding experimental conditions, and directly motivates the phase formula used
 in this application:
 """
