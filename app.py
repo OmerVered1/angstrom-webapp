@@ -632,14 +632,17 @@ def main():
             <span style="font-size:5rem; line-height:1;">🌡️</span>
         </div>
         """, unsafe_allow_html=True)
-        # Dark mode toggle — circle pill button
-        _dm_col, _ = st.columns([1, 3])
+        # Dark mode toggle — circle pill button + label
+        _dm_col, _label_col = st.columns([1, 3])
         with _dm_col:
             st.markdown('<div class="dm-toggle">', unsafe_allow_html=True)
             if st.button("☀️" if dark else "🌙", key="dm_toggle"):
                 st.session_state.dark_mode = not dark
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
+        with _label_col:
+            _mode_label = "Bright Mode" if dark else "Dark Mode"
+            st.markdown(f"<p style='margin:0; padding-top:0.75rem; font-size:0.85rem; opacity:0.7;'>{_mode_label}</p>", unsafe_allow_html=True)
 
         st.divider()
         st.header("Navigation")
