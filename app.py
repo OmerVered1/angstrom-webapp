@@ -593,6 +593,10 @@ def main():
         line-height: 1.6;
         box-sizing: border-box;
     }}
+    /* Vertically center the DM toggle row columns */
+    [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] {{
+        align-items: center !important;
+    }}
     /* Dark mode toggle button — circle pill */
     div.dm-toggle button {{
         width: 48px !important;
@@ -632,28 +636,17 @@ def main():
             <span style="font-size:5rem; line-height:1;">🌡️</span>
         </div>
         """, unsafe_allow_html=True)
-        # Dark mode toggle — circle pill button with inline label via CSS
+        # Dark mode toggle — circle button + inline label
         _mode_label = "Bright Mode" if dark else "Dark Mode"
-        st.markdown(f"""
-        <style>
-        div.dm-toggle {{ position: relative; }}
-        div.dm-toggle::after {{
-            content: "{_mode_label}";
-            position: absolute;
-            left: 58px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 1.1rem;
-            font-weight: 600;
-            white-space: nowrap;
-        }}
-        </style>
-        <div class="dm-toggle">
-        """, unsafe_allow_html=True)
-        if st.button("☀️" if dark else "🌙", key="dm_toggle"):
-            st.session_state.dark_mode = not dark
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+        _dm_col, _label_col = st.columns([1, 3], gap="small")
+        with _dm_col:
+            st.markdown('<div class="dm-toggle">', unsafe_allow_html=True)
+            if st.button("☀️" if dark else "🌙", key="dm_toggle"):
+                st.session_state.dark_mode = not dark
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+        with _label_col:
+            st.markdown(f'<div style="display:flex; align-items:center; height:58px;"><span style="font-size:1.1rem; font-weight:600;">{_mode_label}</span></div>', unsafe_allow_html=True)
 
         st.divider()
         st.header("Navigation")
