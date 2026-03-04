@@ -59,6 +59,7 @@ def init_session_state():
         'step': 1,  # 1=Upload, 2=Select Range, 3=Analysis, 4=Results
         'manual_clicks': [],
         'last_save_time': 0,
+        'dark_mode': False,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -489,28 +490,97 @@ def main():
         _render_login()
         st.stop()
 
-    # Global CSS — larger sidebar title, larger nav font, pinned credit
-    st.markdown("""
+    dark = st.session_state.get('dark_mode', False)
+
+    # Global CSS — theme + sidebar styles
+    _dark_css = """
+    /* ===== DARK MODE ===== */
+    .stApp, .main, [data-testid="stAppViewContainer"] {
+        background-color: #0f1117 !important;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #1a1c24 !important;
+    }
+    .stApp p, .stApp span, .stApp li, .stApp td, .stApp th,
+    .stMarkdown, [data-testid="stMarkdown"] * {
+        color: #fafafa !important;
+    }
+    h1, h2, h3, h4, h5, h6 { color: #fafafa !important; }
+    label { color: #fafafa !important; }
+    [data-testid="stTextInput"] input,
+    [data-testid="stNumberInput"] input,
+    [data-testid="stTextArea"] textarea {
+        background-color: #262730 !important;
+        color: #fafafa !important;
+        border-color: #555 !important;
+    }
+    [data-testid="stSelectbox"] > div > div,
+    [data-testid="stMultiSelect"] > div > div {
+        background-color: #262730 !important;
+        color: #fafafa !important;
+    }
+    [data-testid="stMetric"] {
+        background-color: #262730 !important;
+        border-radius: 8px;
+        padding: 0.8rem;
+    }
+    [data-testid="stMetricLabel"] p { color: #aaa !important; }
+    [data-testid="stMetricValue"] { color: #fafafa !important; }
+    hr { border-color: #3d3d3d !important; }
+    .stButton > button {
+        background-color: #262730 !important;
+        color: #fafafa !important;
+        border-color: #555 !important;
+    }
+    .stButton > button:hover {
+        background-color: #363740 !important;
+        border-color: #777 !important;
+    }
+    .stCaption, [data-testid="stCaptionContainer"] p { color: #888 !important; }
+    [data-testid="stFileUploader"] {
+        background-color: #262730 !important;
+        border-color: #555 !important;
+    }
+    [data-testid="stExpander"] {
+        background-color: #1e2030 !important;
+        border-color: #3d3d3d !important;
+    }
+    [data-testid="stDataFrame"] { background-color: #1a1c24 !important; }
+    [data-testid="stRadio"] label p { color: #fafafa !important; }
+    [data-testid="stHeader"] { background-color: #0f1117 !important; }
+    .sidebar-credit { background: #1a1c24 !important; color: #666 !important; }
+    div.dm-toggle button {
+        border-color: #4a9eff !important;
+        color: #f5c542 !important;
+    }
+    """ if dark else """
+    div.dm-toggle button {
+        border-color: #555 !important;
+        color: #334 !important;
+    }
+    """
+
+    st.markdown(f"""
     <style>
     /* Bigger sidebar app title (h2) */
-    [data-testid="stSidebar"] h2 {
+    [data-testid="stSidebar"] h2 {{
         font-size: 2.1rem !important;
         font-weight: 700;
         line-height: 1.25;
         margin-bottom: 0.1rem;
-    }
+    }}
     /* Larger font for sidebar radio nav options */
-    [data-testid="stSidebar"] .stRadio label p {
+    [data-testid="stSidebar"] .stRadio label p {{
         font-size: 1.3rem !important;
         font-weight: 500;
         line-height: 1.75;
-    }
+    }}
     /* Give sidebar content breathing room above the pinned credit */
-    [data-testid="stSidebarContent"] {
+    [data-testid="stSidebarContent"] {{
         padding-bottom: 72px !important;
-    }
-    /* Pinned credit — no custom border; st.divider() above it provides the line */
-    .sidebar-credit {
+    }}
+    /* Pinned credit */
+    .sidebar-credit {{
         position: fixed;
         bottom: 0;
         left: 0;
@@ -522,7 +592,25 @@ def main():
         z-index: 99999;
         line-height: 1.6;
         box-sizing: border-box;
-    }
+    }}
+    /* Dark mode toggle button — circle pill */
+    div.dm-toggle button {{
+        width: 48px !important;
+        height: 48px !important;
+        border-radius: 50% !important;
+        padding: 0 !important;
+        min-height: unset !important;
+        font-size: 1.3rem !important;
+        background: transparent !important;
+        border-width: 2px !important;
+        border-style: solid !important;
+        line-height: 1 !important;
+        transition: transform 0.15s;
+    }}
+    div.dm-toggle button:hover {{
+        transform: scale(1.08);
+    }}
+    {_dark_css}
     </style>
     """, unsafe_allow_html=True)
 
@@ -544,6 +632,15 @@ def main():
             <span style="font-size:5rem; line-height:1;">🌡️</span>
         </div>
         """, unsafe_allow_html=True)
+        # Dark mode toggle — circle pill button
+        _dm_col, _ = st.columns([1, 3])
+        with _dm_col:
+            st.markdown('<div class="dm-toggle">', unsafe_allow_html=True)
+            if st.button("☀️" if dark else "🌙", key="dm_toggle"):
+                st.session_state.dark_mode = not dark
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
         st.divider()
         st.header("Navigation")
         page = st.radio(
