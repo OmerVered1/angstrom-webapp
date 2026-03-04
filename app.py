@@ -593,22 +593,18 @@ def main():
         line-height: 1.6;
         box-sizing: border-box;
     }}
-    /* Vertically center the DM toggle row columns */
-    [data-testid="stSidebar"] [data-testid="stHorizontalBlock"] {{
-        align-items: center !important;
-    }}
-    /* Dark mode toggle button — circle pill */
+    /* Dark mode toggle — pill button */
     div.dm-toggle button {{
-        width: 48px !important;
-        height: 48px !important;
-        border-radius: 50% !important;
-        padding: 0 !important;
+        width: 100% !important;
+        height: 42px !important;
+        border-radius: 999px !important;
+        padding: 0 1.1rem !important;
         min-height: unset !important;
-        font-size: 1.3rem !important;
+        font-size: 1rem !important;
+        font-weight: 600 !important;
         background: transparent !important;
         border-width: 2px !important;
         border-style: solid !important;
-        line-height: 1 !important;
         transition: transform 0.15s;
     }}
     div.dm-toggle button:hover {{
@@ -636,17 +632,13 @@ def main():
             <span style="font-size:5rem; line-height:1;">🌡️</span>
         </div>
         """, unsafe_allow_html=True)
-        # Dark mode toggle — circle button + inline label
-        _mode_label = "Bright Mode" if dark else "Dark Mode"
-        _dm_col, _label_col = st.columns([1, 3], gap="small")
-        with _dm_col:
-            st.markdown('<div class="dm-toggle">', unsafe_allow_html=True)
-            if st.button("☀️" if dark else "🌙", key="dm_toggle"):
-                st.session_state.dark_mode = not dark
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-        with _label_col:
-            st.markdown(f'<div style="display:flex; align-items:center; height:58px;"><span style="font-size:1.1rem; font-weight:600;">{_mode_label}</span></div>', unsafe_allow_html=True)
+        # Dark mode toggle — pill button with icon + label
+        _btn_label = "☀️  Bright Mode" if dark else "🌙  Dark Mode"
+        st.markdown('<div class="dm-toggle">', unsafe_allow_html=True)
+        if st.button(_btn_label, key="dm_toggle"):
+            st.session_state.dark_mode = not dark
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
         st.divider()
         st.header("Navigation")
