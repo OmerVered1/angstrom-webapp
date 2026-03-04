@@ -468,8 +468,8 @@ def _render_login():
         if _login_icon_b64:
             st.markdown(f'<div style="text-align:center"><img src="data:image/png;base64,{_login_icon_b64}" style="width:180px; object-fit:contain;"></div>', unsafe_allow_html=True)
         st.divider()
-        st.markdown("<p style='font-size:1.3rem; font-weight:700; margin-bottom:0.3rem;'>Lab password</p>", unsafe_allow_html=True)
-        password = st.text_input("Lab password", type="password", placeholder="Enter password", label_visibility="collapsed")
+        st.markdown("<p style='font-size:1.3rem; font-weight:700; margin-bottom:0.3rem;'>Password</p>", unsafe_allow_html=True)
+        password = st.text_input("Password", type="password", placeholder="Enter password", label_visibility="collapsed")
         if st.button("Enter", type="primary", use_container_width=True):
             correct = st.secrets.get("APP_PASSWORD", "angstrom2024")
             if password == correct:
@@ -642,7 +642,7 @@ def main():
             st.markdown('</div>', unsafe_allow_html=True)
         with _label_col:
             _mode_label = "Bright Mode" if dark else "Dark Mode"
-            st.markdown(f"<p style='margin:0; padding-top:0.75rem; font-size:0.85rem; opacity:0.7;'>{_mode_label}</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='margin:0; padding-top:0.55rem; font-size:1.1rem; font-weight:600;'>{_mode_label}</p>", unsafe_allow_html=True)
 
         st.divider()
         st.header("Navigation")
