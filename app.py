@@ -468,8 +468,8 @@ def _render_login():
         if _login_icon_b64:
             st.markdown(f'<div style="text-align:center"><img src="data:image/png;base64,{_login_icon_b64}" style="width:180px; object-fit:contain;"></div>', unsafe_allow_html=True)
         st.divider()
-        st.markdown("<p style='font-size:1.3rem; font-weight:700; margin-bottom:0.3rem;'>Password</p>", unsafe_allow_html=True)
-        password = st.text_input("Password", type="password", placeholder="Enter password", label_visibility="collapsed")
+        st.markdown("<p style='font-size:1.3rem; font-weight:700; margin-bottom:0.3rem;'>Enter Lab Password</p>", unsafe_allow_html=True)
+        password = st.text_input("Password", type="password", placeholder="Enter Password", label_visibility="collapsed")
         if st.button("Enter", type="primary", use_container_width=True):
             correct = st.secrets.get("APP_PASSWORD", "angstrom2024")
             if password == correct:
@@ -632,17 +632,28 @@ def main():
             <span style="font-size:5rem; line-height:1;">🌡️</span>
         </div>
         """, unsafe_allow_html=True)
-        # Dark mode toggle — circle pill button + label
-        _dm_col, _label_col = st.columns([1, 3])
-        with _dm_col:
-            st.markdown('<div class="dm-toggle">', unsafe_allow_html=True)
-            if st.button("☀️" if dark else "🌙", key="dm_toggle"):
-                st.session_state.dark_mode = not dark
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-        with _label_col:
-            _mode_label = "Bright Mode" if dark else "Dark Mode"
-            st.markdown(f"<p style='margin:0; padding-top:0.55rem; font-size:1.1rem; font-weight:600;'>{_mode_label}</p>", unsafe_allow_html=True)
+        # Dark mode toggle — circle pill button with inline label via CSS
+        _mode_label = "Bright Mode" if dark else "Dark Mode"
+        st.markdown(f"""
+        <style>
+        div.dm-toggle {{ position: relative; }}
+        div.dm-toggle::after {{
+            content: "{_mode_label}";
+            position: absolute;
+            left: 58px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.1rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }}
+        </style>
+        <div class="dm-toggle">
+        """, unsafe_allow_html=True)
+        if st.button("☀️" if dark else "🌙", key="dm_toggle"):
+            st.session_state.dark_mode = not dark
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
         st.divider()
         st.header("Navigation")
